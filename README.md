@@ -20,6 +20,17 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Export CSV | ✅ | Streaming, BOM UTF-8 agar rapi di Excel |
 | Admin internal | ✅ | Monitoring tenant, user, project, job, error, audit log |
 
+### Tambahan P1
+
+| Fitur | Status | Catatan |
+|---|---|---|
+| Screenshot desktop/mobile | ✅ | Opsional (Playwright), untuk perbandingan before/after |
+| Approval admin | ✅ | Opsional, menahan download `index.html` sampai disetujui |
+| Bulk retry job | ✅ | Ulangi semua job gagal sekaligus, per project atau global |
+| Anti-duplikat URL | ✅ | URL yang sudah diproses di project dilewati, hemat kuota |
+| Confidence per field | ✅ | Ditampilkan di detail lead |
+| Lead notes & tags | ✅ | Tersimpan per lead |
+
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
 Excel/JSON, white-label, dan discovery engine dari pihak ketiga.
@@ -84,6 +95,38 @@ export BOOTSTRAP_ADMIN_PASSWORD='ganti-password-ini'
 docker compose up --build
 ```
 
+## Fitur Opsional
+
+### Screenshot desktop/mobile
+
+Butuh Playwright dan browser, jadi tidak dipasang secara default:
+
+```bash
+pip install -r requirements-screenshot.txt
+playwright install chromium
+```
+
+Lalu pada `.env`:
+
+```
+SCREENSHOT_ENABLED=true
+SCREENSHOT_ON_SCRAPE=true   # ambil otomatis setiap selesai scraping
+```
+
+Bila Playwright tidak terpasang, tombol screenshot memberi pesan yang jelas dan
+**tidak** mengganggu scraping, audit, maupun generate redesign.
+
+### Approval admin sebelum download
+
+```
+REQUIRE_REDESIGN_APPROVAL=true
+```
+
+Saat aktif, hasil redesign berstatus `pending`. User tetap bisa melihat preview,
+tetapi tombol download terkunci sampai admin internal menyetujui lewat tab
+**Review redesign**. Admin bisa menolak disertai catatan yang ditampilkan ke user.
+Admin internal selalu bisa mengunduh berkasnya untuk keperluan review.
+
 ## Alur Pemakaian
 
 1. Daftar/masuk, lalu buat **project** dengan wilayah target.
@@ -96,7 +139,9 @@ docker compose up --build
 6. Klik **Generate redesign** untuk membuat konsep, preview, dan
    `index.html` satu file yang bisa diunduh.
 7. Export CSV untuk diserahkan ke tim sales.
-8. Admin internal memantau tenant, job, dan error melalui menu Admin.
+8. (Opsional) Ambil screenshot desktop/mobile untuk bahan before/after.
+9. Admin internal memantau tenant, job, error, dan meninjau hasil redesign
+   melalui menu Admin.
 
 ## Struktur Proyek
 
@@ -120,7 +165,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 106 test
+  tests/               # 125 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -133,7 +178,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 106 test
+cd backend && python -m pytest        # 125 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```
@@ -172,8 +217,12 @@ terlebih dahulu dan sengaja tidak termasuk dalam MVP.
 | `SCRAPER_RESPECT_ROBOTS` | `true` | Patuhi robots.txt |
 | `DEFAULT_MONTHLY_JOB_QUOTA` | `500` | Kuota job per tenant per bulan |
 | `AI_ENABLED` | `false` | Aktifkan rewrite copy dengan AI |
+| `SCREENSHOT_ENABLED` | `false` | Aktifkan fitur screenshot (butuh Playwright) |
+| `SCREENSHOT_ON_SCRAPE` | `false` | Ambil screenshot otomatis saat scraping selesai |
+| `REQUIRE_REDESIGN_APPROVAL` | `false` | Wajib approval admin sebelum download |
 
-## Langkah Berikutnya (P1)
+## Langkah Berikutnya (P2)
 
-Screenshot desktop/mobile untuk before/after, bulk upload yang lebih kaya,
-approval admin sebelum unduh, serta monitoring job yang lebih rinci.
+Sesuai dokumen breakdown, tahap berikutnya setelah MVP tervalidasi: billing
+langganan, integrasi outreach WhatsApp/email, proposal PDF, analytics lanjutan,
+AI enrichment lebih dalam, dan template redesign per niche.

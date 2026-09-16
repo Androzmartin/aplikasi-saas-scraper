@@ -4,7 +4,14 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import EmailStr, Field, field_validator
 
-from app.models.common import ApiModel, JobStatus, LeadStatus, Role, TenantStatus
+from app.models.common import (
+    ApiModel,
+    ApprovalStatus,
+    JobStatus,
+    LeadStatus,
+    Role,
+    TenantStatus,
+)
 
 # --------------------------------------------------------------------------- auth
 
@@ -82,6 +89,8 @@ class ProjectOut(ApiModel):
 class JobCreate(ApiModel):
     project_id: str
     urls: List[str] = Field(min_length=1, max_length=200)
+    # Skip URLs this project already scraped successfully or has queued.
+    skip_existing: bool = True
 
     @field_validator("urls", mode="before")
     @classmethod
@@ -184,7 +193,44 @@ class RedesignOut(ApiModel):
     preview_html: str = ""
     download_url: str
     generated_with: str = "template"
+    approval_status: ApprovalStatus = ApprovalStatus.APPROVED
+    approval_required: bool = False
+    can_download: bool = True
+    approval_note: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     created_at: datetime
+
+
+class ApprovalDecision(ApiModel):
+    status: ApprovalStatus
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+class AdminRedesignOut(ApiModel):
+    id: str
+    lead_id: str
+    tenant_id: Optional[str] = None
+    business_name: Optional[str] = None
+    website_url: Optional[str] = None
+    version: int
+    headline: str
+    approval_status: ApprovalStatus
+    approval_note: Optional[str] = None
+    generated_with: str = "template"
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------- screenshot
+
+
+class ScreenshotOut(ApiModel):
+    lead_id: str
+    version: int = 0
+    variants: List[str] = Field(default_factory=list)
+    failures: Dict[str, str] = Field(default_factory=dict)
+    image_urls: Dict[str, str] = Field(default_factory=dict)
+    captured_at: Optional[datetime] = None
 
 
 # --------------------------------------------------------------------------- admin

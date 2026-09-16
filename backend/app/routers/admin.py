@@ -1,22 +1,32 @@
 """Internal admin panel: cross-tenant monitoring of users, projects and jobs."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import get_db
 from app.deps import require_admin, to_object_id
-from app.models.common import JobStatus, TenantStatus
+from app.models.common import ApprovalStatus, JobStatus, TenantStatus, enum_value
 from app.models.schemas import (
     ActivityLogOut,
+    AdminRedesignOut,
     AdminStats,
+    ApprovalDecision,
     JobOut,
     ProjectOut,
     TenantOut,
     UserOut,
 )
-from app.serializers import activity_out, job_out, project_out, tenant_out, user_out
+from app.serializers import (
+    activity_out,
+    admin_redesign_out,
+    job_out,
+    project_out,
+    tenant_out,
+    user_out,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -57,7 +67,7 @@ async def set_tenant_status(tenant_id: str, value: TenantStatus) -> Any:
     """Suspend or reactivate a tenant; suspended tenants cannot call the API."""
     db = get_db()
     oid = to_object_id(tenant_id, "tenant_id")
-    result = await db.tenants.update_one({"_id": oid}, {"$set": {"status": value.value}})
+    result = await db.tenants.update_one({"_id": oid}, {"$set": {"status": enum_value(value)}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Tenant tidak ditemukan")
     tenant = await db.tenants.find_one({"_id": oid})
@@ -83,7 +93,7 @@ async def list_all_jobs(
     db = get_db()
     query: Dict[str, Any] = {}
     if job_status:
-        query["status"] = job_status.value
+        query["status"] = enum_value(job_status)
     jobs = await db.scrape_jobs.find(query).sort("created_at", -1).limit(limit).to_list(limit)
 
     project_ids = {job["project_id"] for job in jobs if job.get("project_id")}
@@ -112,3 +122,66 @@ async def list_errors(limit: int = Query(default=100, ge=1, le=500)) -> Any:
         .to_list(limit)
     )
     return [job_out(job) for job in jobs]
+
+
+@router.get("/redesigns", response_model=List[AdminRedesignOut])
+async def list_redesigns(
+    approval_status: Optional[ApprovalStatus] = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> Any:
+    """Redesign outputs across tenants, for review and monitoring."""
+    db = get_db()
+    query: Dict[str, Any] = {}
+    if approval_status:
+        query["approval_status"] = enum_value(approval_status)
+
+    docs = await db.redesign_outputs.find(query).sort("created_at", -1).limit(limit).to_list(limit)
+
+    lead_ids = {doc["lead_id"] for doc in docs if doc.get("lead_id")}
+    leads: Dict[Any, Dict[str, Any]] = {}
+    if lead_ids:
+        async for lead in db.leads.find({"_id": {"$in": list(lead_ids)}}):
+            leads[lead["_id"]] = lead
+
+    return [admin_redesign_out(doc, leads.get(doc.get("lead_id"))) for doc in docs]
+
+
+@router.patch("/redesigns/{redesign_id}/approval", response_model=AdminRedesignOut)
+async def decide_redesign(
+    redesign_id: str,
+    decision: ApprovalDecision,
+    admin: Dict[str, Any] = Depends(require_admin),
+) -> Any:
+    """Approve or reject a redesign output before the tenant can download it."""
+    db = get_db()
+    oid = to_object_id(redesign_id, "redesign_id")
+    doc = await db.redesign_outputs.find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Output redesign tidak ditemukan")
+
+    now = datetime.now(timezone.utc)
+    await db.redesign_outputs.update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "approval_status": enum_value(decision.status),
+                "approval_note": (decision.note or "").strip() or None,
+                "reviewed_by": admin["_id"],
+                "reviewed_at": now,
+            }
+        },
+    )
+    await db.activity_logs.insert_one(
+        {
+            "tenant_id": doc.get("tenant_id"),
+            "user_id": admin["_id"],
+            "action": f"redesign_{enum_value(decision.status)}",
+            "target": str(doc.get("lead_id")),
+            "detail": (decision.note or "").strip() or None,
+            "created_at": now,
+        }
+    )
+
+    updated = await db.redesign_outputs.find_one({"_id": oid})
+    lead = await db.leads.find_one({"_id": doc.get("lead_id")})
+    return admin_redesign_out(updated, lead)

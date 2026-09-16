@@ -83,6 +83,17 @@ export default function ProjectDetail() {
     if (fileInput.current) fileInput.current.value = ''
   }
 
+  async function handleRetryAll() {
+    setError(null)
+    try {
+      const { requeued } = await api.retryFailedJobs(projectId)
+      setResult({ created: requeued, rejected: [] })
+      await refresh()
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Gagal mengulang job')
+    }
+  }
+
   async function handleRetry(jobId: string) {
     try {
       await api.retryJob(jobId)
@@ -177,9 +188,18 @@ export default function ProjectDetail() {
         title="Status job"
         description={hasActiveJobs ? 'Diperbarui otomatis setiap 4 detik.' : undefined}
         actions={
-          <button className="btn-secondary" onClick={() => void refresh()}>
-            Muat ulang
-          </button>
+          <>
+            <button
+              className="btn-secondary"
+              onClick={() => void handleRetryAll()}
+              disabled={(counts.failed ?? 0) === 0}
+            >
+              Ulangi semua yang gagal
+            </button>
+            <button className="btn-secondary" onClick={() => void refresh()}>
+              Muat ulang
+            </button>
+          </>
         }
         bodyClassName=""
       >

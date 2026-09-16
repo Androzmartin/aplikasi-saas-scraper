@@ -51,5 +51,7 @@ async def ensure_indexes() -> None:
     )
     await db.website_audits.create_index([("lead_id", ASCENDING), ("created_at", DESCENDING)])
     await db.redesign_outputs.create_index([("lead_id", ASCENDING), ("version", DESCENDING)])
+    await db.redesign_outputs.create_index([("approval_status", ASCENDING), ("created_at", DESCENDING)])
+    await db.screenshots.create_index([("lead_id", ASCENDING), ("version", DESCENDING)])
     await db.activity_logs.create_index([("tenant_id", ASCENDING), ("created_at", DESCENDING)])
     await db.activity_logs.create_index([("created_at", DESCENDING)])

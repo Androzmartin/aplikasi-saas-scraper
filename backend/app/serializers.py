@@ -106,8 +106,11 @@ def audit_out(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def redesign_out(doc: Dict[str, Any], api_prefix: str) -> Dict[str, Any]:
+def redesign_out(
+    doc: Dict[str, Any], api_prefix: str, approval_required: bool = False
+) -> Dict[str, Any]:
     lead_id = oid(doc.get("lead_id"))
+    approval_status = doc.get("approval_status", "approved")
     return {
         "id": oid(doc["_id"]),
         "lead_id": lead_id,
@@ -118,7 +121,33 @@ def redesign_out(doc: Dict[str, Any], api_prefix: str) -> Dict[str, Any]:
         "preview_html": doc.get("preview_html", ""),
         "download_url": f"{api_prefix}/redesign/{lead_id}/download",
         "generated_with": doc.get("generated_with", "template"),
+        "approval_status": approval_status,
+        "approval_required": approval_required,
+        # The preview is always visible; only the download is gated.
+        "can_download": (not approval_required) or approval_status == "approved",
+        "approval_note": doc.get("approval_note"),
+        "reviewed_at": doc.get("reviewed_at"),
         "created_at": doc.get("created_at"),
+    }
+
+
+def admin_redesign_out(
+    doc: Dict[str, Any], lead: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    lead = lead or {}
+    return {
+        "id": oid(doc["_id"]),
+        "lead_id": oid(doc.get("lead_id")),
+        "tenant_id": oid(doc.get("tenant_id")),
+        "business_name": lead.get("business_name"),
+        "website_url": lead.get("website_url"),
+        "version": doc.get("version", 1),
+        "headline": doc.get("headline", ""),
+        "approval_status": doc.get("approval_status", "approved"),
+        "approval_note": doc.get("approval_note"),
+        "generated_with": doc.get("generated_with", "template"),
+        "created_at": doc.get("created_at"),
+        "reviewed_at": doc.get("reviewed_at"),
     }
 
 

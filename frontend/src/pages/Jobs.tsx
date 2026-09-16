@@ -33,6 +33,24 @@ export default function Jobs() {
     return () => clearInterval(timer)
   }, [hasActive, load])
 
+  const [notice, setNotice] = useState<string | null>(null)
+
+  async function retryAllFailed() {
+    setError(null)
+    setNotice(null)
+    try {
+      const { requeued } = await api.retryFailedJobs()
+      setNotice(
+        requeued > 0
+          ? `${requeued} job gagal dimasukkan kembali ke antrean.`
+          : 'Tidak ada job gagal untuk diulang.',
+      )
+      await load()
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Gagal mengulang job')
+    }
+  }
+
   async function retry(jobId: string) {
     try {
       await api.retryJob(jobId)
@@ -49,10 +67,22 @@ export default function Jobs() {
       <PageHeader
         title="Scraping Jobs"
         description="Pantau antrean, status, dan kegagalan job scraping."
-        actions={<button className="btn-secondary" onClick={() => void load()}>Muat ulang</button>}
+        actions={
+          <>
+            <button
+              className="btn-secondary"
+              onClick={() => void retryAllFailed()}
+              disabled={byStatus('failed') === 0}
+            >
+              Ulangi semua yang gagal
+            </button>
+            <button className="btn-secondary" onClick={() => void load()}>Muat ulang</button>
+          </>
+        }
       />
 
       {error && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
+      {notice && <div className="mb-4"><Alert tone="success">{notice}</Alert></div>}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Menunggu" value={byStatus('pending')} />

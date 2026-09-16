@@ -11,7 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db import close, connect, ensure_indexes
 from app.models.common import Role, TenantStatus
-from app.routers import admin, audits, auth, exports, leads, projects, redesign, scrape
+from app.routers import (
+    admin,
+    audits,
+    auth,
+    exports,
+    leads,
+    projects,
+    redesign,
+    scrape,
+    screenshots,
+)
 from app.security import hash_password
 from app.services.jobs import start_workers, stop_workers
 
@@ -86,6 +96,7 @@ for router in (
     leads.router,
     audits.router,
     redesign.router,
+    screenshots.router,
     exports.router,
     admin.router,
 ):

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '@/api/client'
 import type { Audit, Lead, Redesign } from '@/api/types'
+import ScreenshotPanel from '@/components/ScreenshotPanel'
 import { Alert, Field, LeadStatusBadge, PageHeader, Panel, Spinner } from '@/components/ui'
 import { AUDIT_PARAM_LABELS, LEAD_STATUS_LABELS, formatDate, regionLabel } from '@/lib/format'
 
@@ -300,18 +301,44 @@ export default function LeadDetail() {
             )}
           </Panel>
 
+          <ScreenshotPanel leadId={leadId} />
+
           <Panel
             title="Konsep redesign"
             description={redesign ? `Versi ${redesign.version} · ${formatDate(redesign.created_at)}` : undefined}
             actions={
               redesign && (
-                <button
-                  className="btn-secondary"
-                  disabled={busy === 'download'}
-                  onClick={() => act('download', () => api.downloadRedesign(leadId), 'index.html diunduh.')}
-                >
-                  Download index.html
-                </button>
+                <div className="flex items-center gap-3">
+                  {redesign.approval_required && (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        redesign.approval_status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                          : redesign.approval_status === 'rejected'
+                            ? 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                            : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                      }`}
+                    >
+                      {redesign.approval_status === 'approved'
+                        ? 'Disetujui admin'
+                        : redesign.approval_status === 'rejected'
+                          ? 'Ditolak admin'
+                          : 'Menunggu persetujuan'}
+                    </span>
+                  )}
+                  <button
+                    className="btn-secondary"
+                    disabled={busy === 'download' || !redesign.can_download}
+                    title={
+                      redesign.can_download
+                        ? undefined
+                        : 'Menunggu persetujuan admin internal sebelum bisa diunduh'
+                    }
+                    onClick={() => act('download', () => api.downloadRedesign(leadId), 'index.html diunduh.')}
+                  >
+                    Download index.html
+                  </button>
+                </div>
               )
             }
           >
@@ -321,6 +348,19 @@ export default function LeadDetail() {
               </p>
             ) : (
               <>
+                {redesign.approval_required && !redesign.can_download && (
+                  <div className="mb-5">
+                    <Alert tone={redesign.approval_status === 'rejected' ? 'error' : 'warning'}>
+                      {redesign.approval_status === 'rejected'
+                        ? 'Admin internal menolak hasil redesign ini.'
+                        : 'Hasil redesign menunggu persetujuan admin internal sebelum dapat diunduh.'}
+                      {redesign.approval_note && (
+                        <p className="mt-1 text-xs">Catatan admin: {redesign.approval_note}</p>
+                      )}
+                    </Alert>
+                  </div>
+                )}
+
                 <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
                   <p className="text-lg font-semibold leading-snug text-slate-900">{redesign.headline}</p>
                   <p className="mt-2 text-sm text-slate-600">{redesign.subheadline}</p>

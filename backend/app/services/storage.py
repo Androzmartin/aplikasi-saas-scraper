@@ -1,6 +1,6 @@
 """Object storage abstraction. MVP ships a local filesystem driver.
 
-Swapping in S3/GCS later means implementing the same three methods.
+Swapping in S3/GCS later means implementing the same handful of methods.
 """
 from __future__ import annotations
 
@@ -39,6 +39,22 @@ class LocalStorage:
         if not path.is_file():
             return None
         return path.read_text(encoding="utf-8")
+
+    def put_bytes(self, key: str, content: bytes) -> str:
+        """Used for screenshots and any other binary artefact."""
+        path = self._resolve(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return key
+
+    def get_bytes(self, key: str) -> Optional[bytes]:
+        path = self._resolve(key)
+        if not path.is_file():
+            return None
+        return path.read_bytes()
+
+    def exists(self, key: str) -> bool:
+        return self._resolve(key).is_file()
 
     def delete(self, key: str) -> None:
         path = self._resolve(key)

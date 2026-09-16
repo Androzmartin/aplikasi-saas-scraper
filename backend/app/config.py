@@ -38,6 +38,17 @@ class Settings(BaseSettings):
 
     default_monthly_job_quota: int = 500
 
+    # Screenshots need Playwright plus a browser binary, so they stay opt-in.
+    screenshot_enabled: bool = False
+    screenshot_on_scrape: bool = False
+    screenshot_timeout_seconds: float = 30.0
+    screenshot_full_page: bool = False
+    screenshot_browser_path: str = ""
+
+    # When true, a redesign must be approved by an internal admin before the
+    # tenant can download its index.html.
+    require_redesign_approval: bool = False
+
     bootstrap_admin_email: str = "admin@example.com"
     bootstrap_admin_password: str = ""
     bootstrap_admin_name: str = "Internal Admin"

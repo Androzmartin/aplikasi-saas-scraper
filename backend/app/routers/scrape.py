@@ -15,7 +15,7 @@ from app.deps import (
     tenant_filter,
     to_object_id,
 )
-from app.models.common import JobStatus
+from app.models.common import JobStatus, enum_value
 from app.models.schemas import JobCreate, JobCreateResponse, JobOut
 from app.serializers import job_out
 from app.services.jobs import notify_new_jobs
@@ -59,9 +59,35 @@ async def create_jobs(payload: JobCreate, user: Dict[str, Any] = Depends(get_cur
     if not accepted:
         return {"created": [], "rejected": rejected}
 
+    db = get_db()
+
+    if payload.skip_existing:
+        # A URL already scraped successfully in this project is skipped so a
+        # re-pasted list does not burn quota on work already done.
+        existing = set()
+        async for job in db.scrape_jobs.find(
+            {
+                "project_id": project["_id"],
+                "source_url": {"$in": accepted},
+                "status": {"$in": [JobStatus.COMPLETED.value, JobStatus.PENDING.value, JobStatus.RUNNING.value]},
+            },
+            {"source_url": 1},
+        ):
+            existing.add(job["source_url"])
+
+        if existing:
+            rejected.extend(
+                {"url": url, "reason": "Sudah pernah diproses di project ini"}
+                for url in accepted
+                if url in existing
+            )
+            accepted = [url for url in accepted if url not in existing]
+
+    if not accepted:
+        return {"created": [], "rejected": rejected}
+
     await _check_quota(user, len(accepted))
 
-    db = get_db()
     now = datetime.now(timezone.utc)
     docs = [
         {
@@ -114,7 +140,7 @@ async def list_jobs(
     if project_id:
         query["project_id"] = to_object_id(project_id, "project_id")
     if job_status:
-        query["status"] = job_status.value
+        query["status"] = enum_value(job_status)
 
     jobs = await db.scrape_jobs.find(query).sort("created_at", -1).limit(limit).to_list(limit)
 
@@ -163,3 +189,32 @@ async def retry_job(job_id: str, user: Dict[str, Any] = Depends(get_current_user
     refreshed = await db.scrape_jobs.find_one({"_id": oid})
     project = await db.projects.find_one({"_id": job.get("project_id")})
     return job_out(refreshed, (project or {}).get("name"))
+
+
+@router.post("/jobs/retry-failed", response_model=Dict[str, int])
+async def retry_failed_jobs(
+    user: Dict[str, Any] = Depends(get_current_user),
+    project_id: Optional[str] = None,
+) -> Any:
+    """Requeue every failed job at once, optionally scoped to one project."""
+    db = get_db()
+    query: Dict[str, Any] = {"status": JobStatus.FAILED.value, **tenant_filter(user)}
+    if project_id:
+        project = await get_owned_project(project_id, user)
+        query["project_id"] = project["_id"]
+
+    result = await db.scrape_jobs.update_many(
+        query,
+        {
+            "$set": {
+                "status": JobStatus.PENDING.value,
+                "attempts": 0,
+                "error_message": None,
+                "started_at": None,
+                "completed_at": None,
+            }
+        },
+    )
+    if result.modified_count:
+        notify_new_jobs()
+    return {"requeued": result.modified_count}

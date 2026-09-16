@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.db import get_db
 from app.deps import get_current_user, get_owned_lead, tenant_filter, to_object_id
-from app.models.common import LeadStatus, Page
+from app.models.common import LeadStatus, Page, enum_value
 from app.models.schemas import LeadOut, LeadUpdate
 from app.serializers import lead_out
 
@@ -31,7 +31,7 @@ def build_lead_query(
     if region:
         query["region"] = region
     if lead_status:
-        query["status"] = lead_status.value
+        query["status"] = enum_value(lead_status)
 
     score_filter: Dict[str, int] = {}
     if min_score is not None:
@@ -128,8 +128,7 @@ async def update_lead(
 
     updates: Dict[str, Any] = {}
     if payload.status is not None:
-        # ApiModel uses use_enum_values, so this is already the string value.
-        updates["status"] = payload.status
+        updates["status"] = enum_value(payload.status)
     if payload.notes is not None:
         updates["notes"] = payload.notes.strip() or None
     if payload.tags is not None:

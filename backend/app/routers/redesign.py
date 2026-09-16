@@ -4,12 +4,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
 from app.config import settings
 from app.db import get_db
-from app.deps import get_current_user, get_owned_lead
+from app.deps import get_current_user, get_owned_lead, is_admin
 from app.models.schemas import RedesignOut
 from app.serializers import redesign_out
 from app.services.ai import enrich_concept
@@ -41,10 +41,15 @@ async def generate_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_cur
     storage.put_text(key, index_html)
 
     now = datetime.now(timezone.utc)
+    approval_required = settings.require_redesign_approval
     doc = {
         "lead_id": lead["_id"],
         "tenant_id": lead.get("tenant_id"),
         "version": version,
+        "approval_status": "pending" if approval_required else "approved",
+        "approval_note": None,
+        "reviewed_by": None,
+        "reviewed_at": None,
         "headline": concept["headline"],
         "subheadline": concept["subheadline"],
         "sections": concept["sections"],
@@ -67,7 +72,7 @@ async def generate_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_cur
             "created_at": now,
         }
     )
-    return redesign_out(doc, settings.api_prefix)
+    return redesign_out(doc, settings.api_prefix, approval_required)
 
 
 @router.get("/{lead_id}", response_model=RedesignOut)
@@ -77,7 +82,7 @@ async def get_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_current_
     doc = await db.redesign_outputs.find_one({"lead_id": lead["_id"]}, sort=[("version", -1)])
     if not doc:
         raise HTTPException(status_code=404, detail="Belum ada hasil redesign untuk lead ini")
-    return redesign_out(doc, settings.api_prefix)
+    return redesign_out(doc, settings.api_prefix, settings.require_redesign_approval)
 
 
 @router.get("/{lead_id}/download")
@@ -87,6 +92,21 @@ async def download_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_cur
     doc = await db.redesign_outputs.find_one({"lead_id": lead["_id"]}, sort=[("version", -1)])
     if not doc:
         raise HTTPException(status_code=404, detail="Belum ada hasil redesign untuk lead ini")
+
+    # Internal admins can always fetch the file so they can review it.
+    if settings.require_redesign_approval and not is_admin(user):
+        approval_status = doc.get("approval_status", "approved")
+        if approval_status != "approved":
+            detail = (
+                "Hasil redesign ditolak admin internal."
+                if approval_status == "rejected"
+                else "Hasil redesign menunggu persetujuan admin internal."
+            )
+            note = doc.get("approval_note")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"{detail} {note}".strip() if note else detail,
+            )
 
     html = storage.get_text(doc["storage_key"]) if doc.get("storage_key") else None
     if html is None:

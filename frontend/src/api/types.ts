@@ -3,6 +3,7 @@ export type Role = 'admin_internal' | 'user_tenant'
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'rejected'
 export type TenantStatus = 'active' | 'suspended'
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
 export interface User {
   id: string
@@ -126,7 +127,36 @@ export interface Redesign {
   preview_html: string
   download_url: string
   generated_with: string
+  approval_status: ApprovalStatus
+  approval_required: boolean
+  can_download: boolean
+  approval_note: string | null
+  reviewed_at: string | null
   created_at: string
+}
+
+export interface AdminRedesign {
+  id: string
+  lead_id: string
+  tenant_id: string | null
+  business_name: string | null
+  website_url: string | null
+  version: number
+  headline: string
+  approval_status: ApprovalStatus
+  approval_note: string | null
+  generated_with: string
+  created_at: string
+  reviewed_at: string | null
+}
+
+export interface Screenshots {
+  lead_id: string
+  version: number
+  variants: string[]
+  failures: Record<string, string>
+  image_urls: Record<string, string>
+  captured_at: string | null
 }
 
 export interface AdminStats {

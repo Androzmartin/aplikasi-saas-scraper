@@ -1,0 +1,5 @@
+# Dependensi opsional untuk fitur screenshot desktop/mobile.
+# Pasang hanya jika SCREENSHOT_ENABLED=true:
+#   pip install -r requirements-screenshot.txt
+#   playwright install chromium
+playwright==1.49.1

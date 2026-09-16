@@ -76,6 +76,42 @@ async def _record_activity(job: Dict[str, Any], action: str, detail: str) -> Non
     )
 
 
+async def _maybe_capture_screenshots(job: Dict[str, Any], lead_id: ObjectId, url: str) -> None:
+    """Best-effort screenshot after a successful scrape. Never fails the job."""
+    if not (settings.screenshot_enabled and settings.screenshot_on_scrape):
+        return
+
+    from app.services import screenshots as shots
+
+    db = get_db()
+    try:
+        result = await shots.capture(url, str(lead_id), version=1)
+    except shots.ScreenshotUnavailable as exc:
+        logger.info("Screenshots skipped for %s: %s", url, exc)
+        return
+    except Exception:  # noqa: BLE001 - a screenshot is never worth failing a scrape
+        logger.exception("Screenshot capture failed for %s", url)
+        return
+
+    if not result.any_captured:
+        return
+
+    await db.screenshots.update_one(
+        {"lead_id": lead_id, "version": 1},
+        {
+            "$set": {
+                "lead_id": lead_id,
+                "tenant_id": job.get("tenant_id"),
+                "version": 1,
+                "keys": result.keys,
+                "failures": result.failures,
+                "created_at": _now(),
+            }
+        },
+        upsert=True,
+    )
+
+
 async def _upsert_lead(job: Dict[str, Any], data: Dict[str, Any], html: str) -> ObjectId:
     """Create or refresh the lead for this URL within its project."""
     db = get_db()
@@ -130,6 +166,7 @@ async def process_job(job: Dict[str, Any]) -> None:
     try:
         data, crawl = await scrape_url(url)
         lead_id = await _upsert_lead(job, data, crawl.root_html)
+        await _maybe_capture_screenshots(job, lead_id, url)
         await db.scrape_jobs.update_one(
             {"_id": job_id},
             {

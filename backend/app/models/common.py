@@ -1,7 +1,7 @@
 """Shared enums and base helpers for API schemas."""
 from datetime import datetime
 from enum import Enum
-from typing import Generic, List, TypeVar
+from typing import Any, Generic, List, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,8 +32,24 @@ class TenantStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+class ApprovalStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class ApiModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
+
+
+def enum_value(value: Any) -> Any:
+    """Return the plain value of an enum-ish input.
+
+    Query parameters arrive as real Enum members, while request-body fields are
+    already strings because ApiModel sets use_enum_values. Calling .value blindly
+    on the latter raises AttributeError, so always route through this.
+    """
+    return value.value if isinstance(value, Enum) else value
 
 
 class Page(ApiModel, Generic[T]):

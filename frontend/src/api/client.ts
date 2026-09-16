@@ -1,6 +1,6 @@
 import type {
-  ActivityLog, AdminStats, Audit, Job, JobCreateResponse, Lead, MeResponse,
-  PageResult, Project, Redesign, Tenant, TokenResponse, User,
+  ActivityLog, AdminRedesign, AdminStats, ApprovalStatus, Audit, Job, JobCreateResponse,
+  Lead, MeResponse, PageResult, Project, Redesign, Screenshots, Tenant, TokenResponse, User,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? '/api'
@@ -92,6 +92,22 @@ async function download(path: string, fallbackName: string): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Fetch a protected image and hand back an object URL.
+ *
+ * A plain <img src="/api/..."> cannot carry the Authorization header, so the
+ * request would come back 401. Callers must revoke the returned URL when the
+ * image unmounts.
+ */
+export async function fetchImageObjectUrl(path: string): Promise<string> {
+  const token = getToken()
+  const response = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) throw new ApiError(response.status, await errorMessage(response))
+  return URL.createObjectURL(await response.blob())
+}
+
 export interface LeadFilters {
   project_id?: string
   region?: string
@@ -124,10 +140,14 @@ export const api = {
     request<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
 
   // scraping
-  createJobs: (project_id: string, urls: string[]) =>
+  createJobs: (project_id: string, urls: string[], skip_existing = true) =>
     request<JobCreateResponse>('/scrape/jobs', {
       method: 'POST',
-      body: JSON.stringify({ project_id, urls }),
+      body: JSON.stringify({ project_id, urls, skip_existing }),
+    }),
+  retryFailedJobs: (project_id?: string) =>
+    request<{ requeued: number }>(`/scrape/jobs/retry-failed${query({ project_id })}`, {
+      method: 'POST',
     }),
   listJobs: (params: { project_id?: string; status?: string; limit?: number } = {}) =>
     request<Job[]>(`/scrape/jobs${query(params)}`),
@@ -154,6 +174,11 @@ export const api = {
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
 
+  // screenshots
+  captureScreenshots: (leadId: string) =>
+    request<Screenshots>(`/screenshots/${leadId}/capture`, { method: 'POST' }),
+  getScreenshots: (leadId: string) => request<Screenshots>(`/screenshots/${leadId}`),
+
   // exports
   exportLeadsCsv: (filters: LeadFilters = {}) =>
     download(`/exports/leads.csv${query(filters as Record<string, string | number>)}`, 'leads.csv'),
@@ -168,4 +193,11 @@ export const api = {
   adminActivity: () => request<ActivityLog[]>('/admin/activity'),
   setTenantStatus: (id: string, value: 'active' | 'suspended') =>
     request<Tenant>(`/admin/tenants/${id}/status${query({ value })}`, { method: 'PATCH' }),
+  adminRedesigns: (status?: ApprovalStatus) =>
+    request<AdminRedesign[]>(`/admin/redesigns${query({ status })}`),
+  decideRedesign: (id: string, status: ApprovalStatus, note?: string) =>
+    request<AdminRedesign>(`/admin/redesigns/${id}/approval`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, note }),
+    }),
 }
