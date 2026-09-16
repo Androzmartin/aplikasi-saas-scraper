@@ -121,6 +121,8 @@ def redesign_out(
         "preview_html": doc.get("preview_html", ""),
         "download_url": f"{api_prefix}/redesign/{lead_id}/download",
         "generated_with": doc.get("generated_with", "template"),
+        "template_key": doc.get("template_key", "umum"),
+        "template_label": doc.get("template_label", ""),
         "approval_status": approval_status,
         "approval_required": approval_required,
         # The preview is always visible; only the download is gated.

@@ -1,6 +1,7 @@
 import type {
   ActivityLog, AdminRedesign, AdminStats, ApprovalStatus, Audit, Job, JobCreateResponse,
-  Lead, MeResponse, PageResult, Project, Redesign, Screenshots, Tenant, TokenResponse, User,
+  Lead, MeResponse, NicheTemplate, PageResult, Project, Redesign, Screenshots, Tenant,
+  TokenResponse, User,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? '/api'
@@ -168,8 +169,9 @@ export const api = {
   getAudit: (leadId: string) => request<Audit>(`/audits/${leadId}`),
 
   // redesign
-  generateRedesign: (leadId: string) =>
-    request<Redesign>(`/redesign/${leadId}/generate`, { method: 'POST' }),
+  listTemplates: () => request<NicheTemplate[]>('/redesign/templates'),
+  generateRedesign: (leadId: string, template?: string) =>
+    request<Redesign>(`/redesign/${leadId}/generate${query({ template })}`, { method: 'POST' }),
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),

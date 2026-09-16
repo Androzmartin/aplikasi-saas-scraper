@@ -4,16 +4,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user, get_owned_lead, is_admin
-from app.models.schemas import RedesignOut
+from app.models.schemas import RedesignOut, TemplateOut
 from app.serializers import redesign_out
 from app.services.ai import enrich_concept
 from app.services.redesign import build_concept, build_preview_html, render_index_html
+from app.services.templates import list_templates
 from app.services.storage import storage
 
 router = APIRouter(prefix="/redesign", tags=["redesign"])
@@ -23,13 +26,25 @@ def _storage_key(lead_id: str, version: int) -> str:
     return f"redesign/{lead_id}/v{version}/index.html"
 
 
+@router.get("/templates", response_model=List[TemplateOut])
+async def get_templates(_: Dict[str, Any] = Depends(get_current_user)) -> Any:
+    """Niche templates the user can pick when generating a redesign."""
+    return list_templates()
+
+
 @router.post("/{lead_id}/generate", response_model=RedesignOut, status_code=201)
-async def generate_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_current_user)) -> Any:
+async def generate_redesign(
+    lead_id: str,
+    user: Dict[str, Any] = Depends(get_current_user),
+    template: Optional[str] = Query(
+        default=None, description="Paksa niche tertentu; kosongkan untuk deteksi otomatis"
+    ),
+) -> Any:
     db = get_db()
     lead = await get_owned_lead(lead_id, user)
     audit = await db.website_audits.find_one({"lead_id": lead["_id"]}, sort=[("created_at", -1)])
 
-    concept = build_concept(lead, audit)
+    concept = build_concept(lead, audit, template)
     concept = await enrich_concept(concept, lead, audit)
 
     index_html = render_index_html(lead, concept, audit)
@@ -53,6 +68,8 @@ async def generate_redesign(lead_id: str, user: Dict[str, Any] = Depends(get_cur
         "headline": concept["headline"],
         "subheadline": concept["subheadline"],
         "sections": concept["sections"],
+        "template_key": concept.get("template_key", "umum"),
+        "template_label": concept.get("template_label", ""),
         "improvements": concept.get("improvements", []),
         "preview_html": build_preview_html(index_html),
         "storage_key": key,

@@ -31,6 +31,12 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Confidence per field | ✅ | Ditampilkan di detail lead |
 | Lead notes & tags | ✅ | Tersimpan per lead |
 
+### Tambahan P2
+
+| Fitur | Status | Catatan |
+|---|---|---|
+| Template redesign per niche | ✅ | 8 niche, masing-masing punya palet, section, dan CTA sendiri |
+
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
 Excel/JSON, white-label, dan discovery engine dari pihak ketiga.
@@ -93,6 +99,31 @@ jadi tidak perlu konfigurasi CORS tambahan saat pengembangan.
 export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 export BOOTSTRAP_ADMIN_PASSWORD='ganti-password-ini'
 docker compose up --build
+```
+
+## Template Redesign per Niche
+
+Generator memilih template berdasarkan nama bisnis, dan user bisa menimpanya
+secara manual dari halaman detail lead.
+
+| Niche | Aksen | Section khusus | CTA |
+|---|---|---|---|
+| Kuliner & F&B | amber | Menu Favorit | Pesan via WhatsApp |
+| Fashion & Retail | rose | Kategori Koleksi | Tanya Stok via WhatsApp |
+| Jasa & Kontraktor | sky | Paket Layanan | Konsultasi Gratis |
+| Kesehatan & Klinik | teal | Layanan Kami | Buat Janji Temu |
+| Otomotif & Bengkel | orange | Jenis Pengerjaan | Booking Servis |
+| Properti | indigo | Tipe Unit | Tanya Ketersediaan |
+| Pendidikan & Kursus | violet | Program Kelas | Daftar Kelas Percobaan |
+| Umum / Lainnya | emerald | Yang Kami Tawarkan | Hubungi via WhatsApp |
+
+Tiap template mengubah palet warna, copy hero, kartu layanan, trust points,
+testimoni, dan satu section khusus sesuai cara industri itu berjualan. Ukuran
+`index.html` tetap sekitar 15 KB.
+
+```
+GET  /api/redesign/templates                          # daftar niche
+POST /api/redesign/{lead_id}/generate?template=jasa   # timpa deteksi otomatis
 ```
 
 ## Fitur Opsional
@@ -165,7 +196,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 125 test
+  tests/               # 176 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -178,13 +209,32 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 125 test
+cd backend && python -m pytest        # 176 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```
 
-Seluruh test backend berjalan tanpa MongoDB (memakai `mongomock-motor`), termasuk
-test API end-to-end yang melewati router, auth, dan serializer sebenarnya.
+Seluruh test backend berjalan tanpa MongoDB, termasuk test API end-to-end yang
+melewati router, auth, dan serializer sebenarnya.
+
+### Cara kebenaran query dijaga tanpa mongod
+
+Karena server MongoDB asli tidak tersedia di CI, kebenaran dijaga tiga lapis:
+
+1. **Index produksi benar-benar dibuat di test.** `ensure_indexes()` dipanggil
+   pada fixture, sehingga constraint seperti unique `users.email` betul-betul
+   ditegakkan — termasuk jalur `DuplicateKeyError` pada registrasi.
+2. **Dua engine query independen dibandingkan.** Setiap bentuk query yang
+   dipakai aplikasi dijalankan di `mongomock` **dan** `montydb`, lalu hasilnya
+   diverifikasi identik. Dua implementasi terpisah yang sepakat adalah bukti
+   kuat bahwa query-nya benar. Lihat `tests/test_database_contract.py`.
+3. **Output query builder diuji sebagai query sungguhan**, bukan sekadar dict
+   Python — termasuk memastikan input pencarian ber-metakarakter regex tidak
+   bisa berlaku sebagai regex.
+
+Yang **belum** tercakup dan tetap perlu satu kali uji dengan mongod asli:
+perilaku sisi server yang tidak punya implementasi Python, khususnya scoring
+`$text` search dan concurrency sungguhan pada pengambilan job.
 
 ## Kepatuhan dan Batasan
 

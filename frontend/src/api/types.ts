@@ -127,6 +127,8 @@ export interface Redesign {
   preview_html: string
   download_url: string
   generated_with: string
+  template_key: string
+  template_label: string
   approval_status: ApprovalStatus
   approval_required: boolean
   can_download: boolean
@@ -148,6 +150,14 @@ export interface AdminRedesign {
   generated_with: string
   created_at: string
   reviewed_at: string | null
+}
+
+export interface NicheTemplate {
+  key: string
+  label: string
+  accent: string
+  headline: string
+  highlight: string
 }
 
 export interface Screenshots {

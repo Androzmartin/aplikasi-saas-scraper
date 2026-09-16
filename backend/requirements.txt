@@ -17,3 +17,5 @@ pytest==8.3.4
 pytest-asyncio==0.25.0
 mongomock-motor==0.0.34
 asgi-lifespan==2.1.0
+# Second, independent Mongo query engine used to cross-check query semantics.
+montydb==2.5.6

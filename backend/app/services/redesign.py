@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from app.services.regions import region_label
+from app.services.templates import TEMPLATES, NicheTemplate, get_template
 
 SECTION_PLAN = [
     "Hero dengan proposisi nilai dan CTA WhatsApp",
@@ -65,11 +66,22 @@ def _wa_link(number: Optional[str], business: str) -> Optional[str]:
     return f"https://wa.me/{digits}?text={quote(message)}"
 
 
-def build_concept(lead: Dict[str, Any], audit: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Produce the copy + structure concept for the new landing page."""
+def build_concept(
+    lead: Dict[str, Any],
+    audit: Optional[Dict[str, Any]] = None,
+    template_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Produce the copy + structure concept for the new landing page.
+
+    template_key lets the user override the auto-detected niche when the
+    guess is wrong, which is common for businesses with a generic name.
+    """
     business = lead.get("business_name") or "Bisnis Anda"
-    industry = detect_industry(business, lead.get("address"))
-    base_headline, base_sub = _INDUSTRY_COPY.get(industry, _INDUSTRY_COPY["umum"])
+    industry = template_key if template_key in TEMPLATES else detect_industry(
+        business, lead.get("address")
+    )
+    template = get_template(industry)
+    base_headline, base_sub = template.headline, template.subheadline
 
     area = region_label(lead.get("region"))
     if lead.get("region") and lead["region"] not in ("unknown", "other"):
@@ -106,7 +118,9 @@ def build_concept(lead: Dict[str, Any], audit: Optional[Dict[str, Any]] = None) 
         "headline": headline,
         "subheadline": base_sub,
         "industry": industry,
-        "sections": SECTION_PLAN,
+        "template_key": template.key,
+        "template_label": template.label,
+        "sections": template.sections or SECTION_PLAN,
         "improvements": improvements[:6],
         "area_label": area,
     }
@@ -123,6 +137,8 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
     subheadline = concept.get("subheadline") or ""
     area = concept.get("area_label") or ""
     improvements: List[str] = concept.get("improvements") or []
+    template: NicheTemplate = get_template(concept.get("template_key") or concept.get("industry"))
+    accent = template.accent
 
     whatsapp = lead.get("whatsapp_number")
     phone = lead.get("phone_number")
@@ -135,12 +151,12 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
 
     primary_cta = (
         f'<a href="{_esc(wa_href)}" target="_blank" rel="noopener"'
-        ' class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3'
-        ' text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700'
-        ' focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">'
+        f' class="inline-flex items-center justify-center gap-2 rounded-lg bg-{accent}-600 px-6 py-3'
+        f' text-sm font-semibold text-white shadow-sm transition hover:bg-{accent}-700'
+        f' focus:outline-none focus-visible:ring-2 focus-visible:ring-{accent}-400">'
         '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
         '<path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.02h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1 12.77-10.2 8.16 8.16 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.2 8.24Z"/>'
-        "</svg>Chat via WhatsApp</a>"
+        f"</svg>{_esc(template.cta_label)}</a>"
         if wa_href
         else '<a href="#kontak" class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Hubungi Kami</a>'
     )
@@ -156,33 +172,42 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
     contact_html = "".join(
         f'<li class="flex items-center justify-between gap-4 border-b border-slate-200 py-3 last:border-0">'
         f'<span class="text-sm font-medium text-slate-500">{label}</span>'
-        f'<a href="{href}" class="text-sm font-semibold text-slate-900 hover:text-emerald-700">{value}</a></li>'
+        f'<a href="{href}" class="text-sm font-semibold text-slate-900 hover:text-{accent}-700">{value}</a></li>'
         for label, value, href in contact_rows
     ) or '<li class="py-3 text-sm text-slate-500">Silakan lengkapi data kontak Anda.</li>'
 
-    services = [
-        ("Kualitas Terjaga", "Standar pengerjaan dan bahan yang konsisten pada setiap pesanan."),
-        ("Respons Cepat", "Pertanyaan Anda dibalas pada jam kerja melalui WhatsApp."),
-        ("Harga Transparan", "Penawaran jelas di depan, tanpa biaya tersembunyi."),
-    ]
+    services = template.services
     services_html = "".join(
         f'<article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">'
-        f'<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-sm font-semibold text-white">{idx + 1}</div>'
-        f'<h3 class="text-base font-semibold text-slate-900">{title}</h3>'
-        f'<p class="mt-2 text-sm leading-relaxed text-slate-600">{body}</p></article>'
+        f'<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-{accent}-600 text-sm font-semibold text-white">{idx + 1}</div>'
+        f'<h3 class="text-base font-semibold text-slate-900">{_esc(title)}</h3>'
+        f'<p class="mt-2 text-sm leading-relaxed text-slate-600">{_esc(body)}</p></article>'
         for idx, (title, body) in enumerate(services)
     )
 
     improvements_html = "".join(
-        f'<li class="flex gap-3"><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"></span>'
+        f'<li class="flex gap-3"><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-{accent}-500"></span>'
         f'<span class="text-sm leading-relaxed text-slate-600">{_esc(item)}</span></li>'
         for item in improvements
     )
 
-    testimonials = [
-        ("Pelayanannya cepat dan hasilnya sesuai ekspektasi. Komunikasi lewat WhatsApp sangat membantu.", "Pelanggan", area or "Jakarta"),
-        ("Sudah beberapa kali pesan dan selalu konsisten. Recommended untuk kebutuhan rutin.", "Pelanggan", area or "Jakarta"),
-    ]
+    testimonials = [(quote, "Pelanggan", area or "Jakarta") for quote in template.testimonials]
+
+    highlight_html = "".join(
+        f'<article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">'
+        f'<h3 class="text-base font-semibold text-slate-900">{_esc(title)}</h3>'
+        f'<p class="mt-2 text-sm leading-relaxed text-slate-600">{_esc(body)}</p></article>'
+        for title, body in template.highlight_items
+    )
+
+    trust_html = "".join(
+        f'<li class="flex items-start gap-3">'
+        f'<svg class="mt-0.5 h-5 w-5 shrink-0 text-{accent}-600" fill="none" viewBox="0 0 24 24"'
+        ' stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round"'
+        ' d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>'
+        f'<span class="text-sm text-slate-700">{_esc(point)}</span></li>'
+        for point in template.trust_points
+    )
     testimonials_html = "".join(
         f'<figure class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">'
         f'<blockquote class="text-sm leading-relaxed text-slate-700">&ldquo;{_esc(quote)}&rdquo;</blockquote>'
@@ -238,6 +263,7 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
     </a>
     <nav class="hidden items-center gap-8 md:flex">
       <a href="#layanan" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Layanan</a>
+      <a href="#unggulan" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">{_esc(template.highlight_title)}</a>
       <a href="#keunggulan" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Keunggulan</a>
       <a href="#testimoni" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Testimoni</a>
       <a href="#kontak" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Kontak</a>
@@ -250,7 +276,7 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
   <section class="relative overflow-hidden border-b border-slate-200 bg-slate-50">
     <div class="mx-auto grid max-w-6xl gap-12 px-6 py-20 md:grid-cols-2 md:items-center md:py-28">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{_esc(area)}</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-{accent}-700">{_esc(template.hero_eyebrow)} &middot; {_esc(area)}</p>
         <h1 class="mt-4 text-4xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl">{_esc(headline)}</h1>
         <p class="mt-6 text-lg leading-relaxed text-slate-600">{_esc(subheadline)}</p>
         <div class="mt-8 flex flex-wrap items-center gap-4">
@@ -269,6 +295,24 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
     <h2 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Yang Kami Tawarkan</h2>
     <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">Ringkasan layanan utama yang paling sering dicari pelanggan {_esc(business)}.</p>
     <div class="mt-10 grid gap-6 md:grid-cols-3">{services_html}</div>
+  </section>
+
+  <section id="unggulan" class="border-y border-slate-200 bg-slate-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">{_esc(template.highlight_title)}</h2>
+      <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">{_esc(template.highlight_subtitle)}</p>
+      <div class="mt-10 grid gap-6 md:grid-cols-3">{highlight_html}</div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <div class="grid gap-12 md:grid-cols-2 md:items-center">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Mengapa Memilih Kami</h2>
+        <p class="mt-3 text-sm leading-relaxed text-slate-600">Hal-hal yang kami jaga pada setiap pesanan.</p>
+      </div>
+      <ul class="space-y-4">{trust_html}</ul>
+    </div>
   </section>
 
   <section id="keunggulan" class="border-y border-slate-200 bg-slate-50">

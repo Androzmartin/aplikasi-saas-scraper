@@ -39,6 +39,11 @@ async def mock_db(monkeypatch):
         if hasattr(module, "get_db"):
             monkeypatch.setattr(module, "get_db", lambda: database)
 
+    # Build the real indexes so tests exercise the same constraints production
+    # has -- notably the unique index on users.email, which the registration
+    # race-condition fallback depends on.
+    await db_module.ensure_indexes()
+
     yield database
 
 

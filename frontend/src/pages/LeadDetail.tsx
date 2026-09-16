@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '@/api/client'
-import type { Audit, Lead, Redesign } from '@/api/types'
+import type { Audit, Lead, NicheTemplate, Redesign } from '@/api/types'
 import ScreenshotPanel from '@/components/ScreenshotPanel'
 import { Alert, Field, LeadStatusBadge, PageHeader, Panel, Spinner } from '@/components/ui'
 import { AUDIT_PARAM_LABELS, LEAD_STATUS_LABELS, formatDate, regionLabel } from '@/lib/format'
@@ -55,6 +55,8 @@ export default function LeadDetail() {
   const [notice, setNotice] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [tagText, setTagText] = useState('')
+  const [templates, setTemplates] = useState<NicheTemplate[]>([])
+  const [templateKey, setTemplateKey] = useState('')
 
   const load = useCallback(async () => {
     const leadData = await api.getLead(leadId)
@@ -74,6 +76,15 @@ export default function LeadDetail() {
   useEffect(() => {
     void load().finally(() => setLoading(false))
   }, [load])
+
+  useEffect(() => {
+    void api.listTemplates().then(setTemplates).catch(() => setTemplates([]))
+  }, [])
+
+  // Default the picker to whatever the last generation used.
+  useEffect(() => {
+    if (redesign?.template_key) setTemplateKey(redesign.template_key)
+  }, [redesign?.template_key])
 
   async function act(key: string, action: () => Promise<void>, success: string) {
     setBusy(key)
@@ -119,7 +130,7 @@ export default function LeadDetail() {
               disabled={busy === 'redesign'}
               onClick={() =>
                 act('redesign', async () => {
-                  setRedesign(await api.generateRedesign(leadId))
+                  setRedesign(await api.generateRedesign(leadId, templateKey || undefined))
                 }, 'Konsep redesign berhasil dibuat.')
               }
             >
@@ -342,6 +353,36 @@ export default function LeadDetail() {
               )
             }
           >
+            <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <label className="label" htmlFor="template">Template niche</label>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  id="template"
+                  className="input w-auto min-w-[16rem]"
+                  value={templateKey}
+                  onChange={(event) => setTemplateKey(event.target.value)}
+                >
+                  <option value="">Deteksi otomatis dari nama bisnis</option>
+                  {templates.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.label} — {item.highlight}
+                    </option>
+                  ))}
+                </select>
+                {redesign && (
+                  <span className="text-xs text-slate-500">
+                    Versi {redesign.version} memakai:{' '}
+                    <span className="font-medium text-slate-700">
+                      {redesign.template_label || redesign.template_key}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-slate-400">
+                Ganti template lalu klik “Generate ulang redesign” untuk membuat versi baru.
+              </p>
+            </div>
+
             {!redesign ? (
               <p className="py-6 text-center text-sm text-slate-500">
                 Belum ada konsep redesign. Klik “Generate redesign” untuk membuatnya.

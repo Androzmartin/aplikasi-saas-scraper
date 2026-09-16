@@ -193,12 +193,22 @@ class RedesignOut(ApiModel):
     preview_html: str = ""
     download_url: str
     generated_with: str = "template"
+    template_key: str = "umum"
+    template_label: str = ""
     approval_status: ApprovalStatus = ApprovalStatus.APPROVED
     approval_required: bool = False
     can_download: bool = True
     approval_note: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     created_at: datetime
+
+
+class TemplateOut(ApiModel):
+    key: str
+    label: str
+    accent: str
+    headline: str
+    highlight: str
 
 
 class ApprovalDecision(ApiModel):
