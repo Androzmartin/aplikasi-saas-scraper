@@ -109,6 +109,16 @@ export async function fetchImageObjectUrl(path: string): Promise<string> {
   return URL.createObjectURL(await response.blob())
 }
 
+/** Fetch a protected text document (used for the proposal preview iframe). */
+export async function fetchTextWithAuth(path: string): Promise<string> {
+  const token = getToken()
+  const response = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) throw new ApiError(response.status, await errorMessage(response))
+  return response.text()
+}
+
 export interface LeadFilters {
   project_id?: string
   region?: string
@@ -175,6 +185,11 @@ export const api = {
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
+
+  // proposal
+  downloadProposal: (leadId: string, format: 'pdf' | 'html') =>
+    download(`/proposals/${leadId}/download${query({ format })}`, `proposal.${format}`),
+  fetchProposalHtml: (leadId: string) => fetchTextWithAuth(`/proposals/${leadId}`),
 
   // outreach
   getOutreachDraft: (leadId: string, channel: string, tone: string) =>

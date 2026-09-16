@@ -37,6 +37,7 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 |---|---|---|
 | Template redesign per niche | ✅ | 8 niche, masing-masing punya palet, section, dan CTA sendiri |
 | Draft outreach WA/email | ✅ | Pesan disusun dari hasil audit + deep link wa.me/mailto |
+| Proposal klien (HTML/PDF) | ✅ | Dokumen siap kirim, mandiri tanpa CDN |
 
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
@@ -148,6 +149,28 @@ GET  /api/outreach/{lead_id}?channel=whatsapp&tone=formal
 POST /api/outreach/{lead_id}/mark-sent?channel=whatsapp
 ```
 
+## Proposal untuk Klien
+
+Menghasilkan dokumen siap kirim yang menggabungkan seluruh hasil kerja:
+ringkasan dan skor audit, temuan utama, screenshot kondisi sekarang
+berdampingan dengan konsep halaman baru, lingkup pekerjaan, deliverable,
+perkiraan waktu, kolom investasi, dan langkah berikutnya.
+
+Dokumen ini **menyertakan seluruh CSS-nya sendiri** (tidak memanggil CDN) dan
+screenshot di-embed sebagai data URI, sehingga tetap tampil benar saat dibuka
+offline, diteruskan lewat email, atau dicetak.
+
+```
+GET /api/proposals/{lead_id}                       # preview HTML
+GET /api/proposals/{lead_id}/download?format=html  # selalu tersedia
+GET /api/proposals/{lead_id}/download?format=pdf   # butuh Playwright
+```
+
+Ekspor PDF memakai browser opsional yang sama dengan fitur screenshot. Bila
+browser tidak terpasang, API menjawab 503 dengan pesan yang mengarahkan user
+mengunduh HTML lalu mencetaknya ke PDF dari browser — jadi fitur ini tidak
+pernah menjadi jalan buntu.
+
 ## Fitur Opsional
 
 ### Screenshot desktop/mobile
@@ -191,11 +214,12 @@ Admin internal selalu bisa mengunduh berkasnya untuk keperluan review.
    temuan, dan ringkasan peluang.
 6. Klik **Generate redesign** untuk membuat konsep, preview, dan
    `index.html` satu file yang bisa diunduh.
-7. Susun draft penawaran WhatsApp/email dari temuan audit, lalu kirim dari
+7. Unduh proposal (HTML/PDF) untuk dikirim ke calon klien.
+8. Susun draft penawaran WhatsApp/email dari temuan audit, lalu kirim dari
    akun Anda sendiri dan tandai sebagai terkirim.
-8. Export CSV untuk diserahkan ke tim sales.
-9. (Opsional) Ambil screenshot desktop/mobile untuk bahan before/after.
-10. Admin internal memantau tenant, job, error, dan meninjau hasil redesign
+9. Export CSV untuk diserahkan ke tim sales.
+10. (Opsional) Ambil screenshot desktop/mobile untuk bahan before/after.
+11. Admin internal memantau tenant, job, error, dan meninjau hasil redesign
    melalui menu Admin.
 
 ## Struktur Proyek
@@ -220,7 +244,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 202 test
+  tests/               # 222 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -233,7 +257,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 202 test
+cd backend && python -m pytest        # 222 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```

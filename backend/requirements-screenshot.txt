@@ -1,5 +1,9 @@
-# Dependensi opsional untuk fitur screenshot desktop/mobile.
+# Dependensi opsional untuk screenshot desktop/mobile dan ekspor proposal PDF.
 # Pasang hanya jika SCREENSHOT_ENABLED=true:
 #   pip install -r requirements-screenshot.txt
 #   playwright install chromium
-playwright==1.49.1
+#
+# Versi browser terikat pada versi paket ini. Jika browser dipasang terpisah
+# (mis. image Docker yang sudah menyertakannya), arahkan lewat
+# SCREENSHOT_BROWSER_PATH agar tidak terjadi ketidakcocokan versi.
+playwright==1.63.0

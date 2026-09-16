@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '@/api/client'
 import type { Audit, Lead, NicheTemplate, Redesign } from '@/api/types'
 import OutreachPanel from '@/components/OutreachPanel'
+import ProposalPanel from '@/components/ProposalPanel'
 import ScreenshotPanel from '@/components/ScreenshotPanel'
 import { Alert, Field, LeadStatusBadge, PageHeader, Panel, Spinner } from '@/components/ui'
 import { AUDIT_PARAM_LABELS, LEAD_STATUS_LABELS, formatDate, regionLabel } from '@/lib/format'
@@ -314,6 +315,8 @@ export default function LeadDetail() {
           </Panel>
 
           <ScreenshotPanel leadId={leadId} />
+
+          <ProposalPanel leadId={leadId} />
 
           <OutreachPanel
             leadId={leadId}
