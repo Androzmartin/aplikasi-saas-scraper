@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true, icon: icon('M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10') },
   { to: '/projects', label: 'Projects', icon: icon('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
   { to: '/leads', label: 'Leads', icon: icon('M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z') },
+  { to: '/analytics', label: 'Analitik', icon: icon('M3 3v18h18M7 15l3-4 3 3 4-6') },
   { to: '/jobs', label: 'Scraping Jobs', icon: icon('M4 6h16M4 12h16M4 18h7M18 15l3 3-3 3') },
   { to: '/admin', label: 'Admin Internal', adminOnly: true, icon: icon('M12 3l7 4v5c0 4.418-2.865 7.59-7 9-4.135-1.41-7-4.582-7-9V7l7-4z') },
 ]

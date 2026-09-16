@@ -13,6 +13,7 @@ from app.db import close, connect, ensure_indexes
 from app.models.common import Role, TenantStatus
 from app.routers import (
     admin,
+    analytics,
     audits,
     auth,
     exports,
@@ -93,6 +94,7 @@ app.add_middleware(
 
 for router in (
     auth.router,
+    analytics.router,
     projects.router,
     scrape.router,
     leads.router,

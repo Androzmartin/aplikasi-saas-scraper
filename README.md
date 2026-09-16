@@ -38,6 +38,7 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Template redesign per niche | ✅ | 8 niche, masing-masing punya palet, section, dan CTA sendiri |
 | Draft outreach WA/email | ✅ | Pesan disusun dari hasil audit + deep link wa.me/mailto |
 | Proposal klien (HTML/PDF) | ✅ | Dokumen siap kirim, mandiri tanpa CDN |
+| Analitik | ✅ | Funnel lead, sebaran skor & wilayah, tren harian |
 
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
@@ -126,6 +127,30 @@ testimoni, dan satu section khusus sesuai cara industri itu berjualan. Ukuran
 ```
 GET  /api/redesign/templates                          # daftar niche
 POST /api/redesign/{lead_id}/generate?template=jasa   # timpa deteksi otomatis
+```
+
+## Analitik
+
+Halaman **Analitik** merangkum kondisi pipeline:
+
+- **Perjalanan lead** — berapa yang mencapai tiap tahap (Baru → Dihubungi →
+  Qualified). Tiap tahap menghitung lead yang *pernah sampai* ke tahap itu,
+  sehingga funnel tidak pernah melebar ke bawah.
+- **Peluang redesign** — sebaran skor audit dalam empat pita, diurutkan dari
+  yang paling bernilai bagi agency (skor rendah = peluang besar).
+- **Sebaran wilayah** — sepuluh wilayah dengan lead terbanyak.
+- **Tren lead masuk** — jumlah lead baru per hari, 30/60/90 hari.
+
+Catatan desain grafik: setiap grafik menampilkan **satu ukuran** dengan kategori
+tertulis pada sumbunya, jadi tidak memerlukan palet kategorikal maupun legenda —
+sekaligus menghilangkan risiko warna yang sulit dibedakan oleh penyandang buta
+warna. Kategori berurutan memakai satu ramp biru yang sudah divalidasi (lightness
+monoton, jarak antar-langkah memadai, ujung paling terang tetap kontras terhadap
+latar). Warna tidak pernah menjadi satu-satunya pembawa makna: setiap nilai juga
+tertulis, dan tersedia tampilan tabel.
+
+```
+GET /api/analytics/overview?project_id=...&days=30
 ```
 
 ## Draft Outreach
@@ -244,20 +269,21 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 222 test
+  tests/               # 235 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
     components/        # layout dan komponen UI bersama
     context/           # AuthContext
-    pages/             # Login, Dashboard, Projects, Leads, LeadDetail, Jobs, Admin, Profile
+    pages/             # Login, Dashboard, Projects, Leads, LeadDetail, Jobs,
+                       # Analytics, Admin, Profile
     lib/               # format tanggal, label wilayah
 ```
 
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 222 test
+cd backend && python -m pytest        # 235 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```

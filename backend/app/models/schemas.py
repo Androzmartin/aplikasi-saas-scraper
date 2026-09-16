@@ -233,6 +233,35 @@ class AdminRedesignOut(ApiModel):
     reviewed_at: Optional[datetime] = None
 
 
+# ---------------------------------------------------------------------- analytics
+
+
+class MetricBucket(ApiModel):
+    key: str
+    label: str
+    count: int
+
+
+class TrendPoint(ApiModel):
+    date: str
+    count: int
+
+
+class AnalyticsOverview(ApiModel):
+    total_leads: int
+    scored_leads: int
+    average_score: Optional[int] = None
+    redesigns: int
+    outreach_sent: int
+    contact_rate: int
+    qualified_rate: int
+    funnel: List[MetricBucket] = Field(default_factory=list)
+    score_bands: List[MetricBucket] = Field(default_factory=list)
+    regions: List[MetricBucket] = Field(default_factory=list)
+    trend: List[TrendPoint] = Field(default_factory=list)
+    days: int = 30
+
+
 # ----------------------------------------------------------------------- outreach
 
 

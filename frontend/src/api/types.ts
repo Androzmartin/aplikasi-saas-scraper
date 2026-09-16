@@ -162,6 +162,32 @@ export interface NicheTemplate {
   highlight: string
 }
 
+export interface MetricBucket {
+  key: string
+  label: string
+  count: number
+}
+
+export interface TrendPoint {
+  date: string
+  count: number
+}
+
+export interface AnalyticsOverview {
+  total_leads: number
+  scored_leads: number
+  average_score: number | null
+  redesigns: number
+  outreach_sent: number
+  contact_rate: number
+  qualified_rate: number
+  funnel: MetricBucket[]
+  score_bands: MetricBucket[]
+  regions: MetricBucket[]
+  trend: TrendPoint[]
+  days: number
+}
+
 export interface OutreachDraft {
   lead_id: string
   channel: string

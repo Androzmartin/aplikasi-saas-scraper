@@ -3,6 +3,7 @@ import Layout from '@/components/Layout'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import Admin from '@/pages/Admin'
+import Analytics from '@/pages/Analytics'
 import Dashboard from '@/pages/Dashboard'
 import Jobs from '@/pages/Jobs'
 import LeadDetail from '@/pages/LeadDetail'
@@ -34,6 +35,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="projects" element={<Projects />} />
         <Route path="projects/:projectId" element={<ProjectDetail />} />
+        <Route path="analytics" element={<Analytics />} />
         <Route path="leads" element={<Leads />} />
         <Route path="leads/:leadId" element={<LeadDetail />} />
         <Route path="jobs" element={<Jobs />} />

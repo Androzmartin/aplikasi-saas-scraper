@@ -1,5 +1,5 @@
 import type {
-  ActivityLog, AdminRedesign, AdminStats, ApprovalStatus, Audit, Job, JobCreateResponse,
+  ActivityLog, AdminRedesign, AdminStats, AnalyticsOverview, ApprovalStatus, Audit, Job, JobCreateResponse,
   Lead, MeResponse, NicheTemplate, OutreachDraft, PageResult, Project, Redesign, Screenshots, Tenant,
   TokenResponse, User,
 } from './types'
@@ -185,6 +185,10 @@ export const api = {
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
+
+  // analytics
+  analyticsOverview: (params: { project_id?: string; days?: number } = {}) =>
+    request<AnalyticsOverview>(`/analytics/overview${query(params)}`),
 
   // proposal
   downloadProposal: (leadId: string, format: 'pdf' | 'html') =>
