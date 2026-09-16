@@ -214,6 +214,7 @@ export default function Leads() {
                     <th className="px-5 py-3">Skor</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3">Redesign</th>
+                    <th className="px-5 py-3">Outreach</th>
                     <th className="px-5 py-3">Ditemukan</th>
                   </tr>
                 </thead>
@@ -246,6 +247,15 @@ export default function Leads() {
                       <td className="table-cell">
                         {lead.has_redesign ? (
                           <span className="text-xs font-medium text-emerald-700">Tersedia</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">Belum</span>
+                        )}
+                      </td>
+                      <td className="table-cell">
+                        {lead.outreach_sent_at ? (
+                          <span className="text-xs font-medium text-slate-700">
+                            {lead.outreach_channel === 'email' ? 'Email' : 'WhatsApp'}
+                          </span>
                         ) : (
                           <span className="text-xs text-slate-400">Belum</span>
                         )}

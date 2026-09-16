@@ -86,6 +86,8 @@ def lead_out(doc: Dict[str, Any], has_redesign: bool = False) -> Dict[str, Any]:
         "tags": doc.get("tags", []),
         "field_confidence": doc.get("field_confidence", {}),
         "has_redesign": has_redesign,
+        "outreach_sent_at": doc.get("outreach_sent_at"),
+        "outreach_channel": doc.get("outreach_channel"),
         "created_at": doc.get("created_at"),
         "updated_at": doc.get("updated_at"),
     }

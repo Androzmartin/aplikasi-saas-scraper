@@ -86,6 +86,8 @@ export interface Lead {
   tags: string[]
   field_confidence: Record<string, number>
   has_redesign: boolean
+  outreach_sent_at: string | null
+  outreach_channel: string | null
   created_at: string
   updated_at: string | null
 }
@@ -158,6 +160,18 @@ export interface NicheTemplate {
   accent: string
   headline: string
   highlight: string
+}
+
+export interface OutreachDraft {
+  lead_id: string
+  channel: string
+  tone: string
+  subject: string | null
+  message: string
+  send_url: string | null
+  recipient: string | null
+  outreach_sent_at: string | null
+  outreach_channel: string | null
 }
 
 export interface Screenshots {

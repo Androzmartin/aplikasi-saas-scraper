@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '@/api/client'
 import type { Audit, Lead, NicheTemplate, Redesign } from '@/api/types'
+import OutreachPanel from '@/components/OutreachPanel'
 import ScreenshotPanel from '@/components/ScreenshotPanel'
 import { Alert, Field, LeadStatusBadge, PageHeader, Panel, Spinner } from '@/components/ui'
 import { AUDIT_PARAM_LABELS, LEAD_STATUS_LABELS, formatDate, regionLabel } from '@/lib/format'
@@ -313,6 +314,13 @@ export default function LeadDetail() {
           </Panel>
 
           <ScreenshotPanel leadId={leadId} />
+
+          <OutreachPanel
+            leadId={leadId}
+            onSent={() => {
+              void api.getLead(leadId).then(setLead)
+            }}
+          />
 
           <Panel
             title="Konsep redesign"

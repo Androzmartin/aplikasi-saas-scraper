@@ -1,6 +1,6 @@
 import type {
   ActivityLog, AdminRedesign, AdminStats, ApprovalStatus, Audit, Job, JobCreateResponse,
-  Lead, MeResponse, NicheTemplate, PageResult, Project, Redesign, Screenshots, Tenant,
+  Lead, MeResponse, NicheTemplate, OutreachDraft, PageResult, Project, Redesign, Screenshots, Tenant,
   TokenResponse, User,
 } from './types'
 
@@ -175,6 +175,15 @@ export const api = {
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
+
+  // outreach
+  getOutreachDraft: (leadId: string, channel: string, tone: string) =>
+    request<OutreachDraft>(`/outreach/${leadId}${query({ channel, tone })}`),
+  markOutreachSent: (leadId: string, channel: string) =>
+    request<{ lead_id: string; status: string; outreach_channel: string; outreach_sent_at: string }>(
+      `/outreach/${leadId}/mark-sent${query({ channel })}`,
+      { method: 'POST' },
+    ),
 
   // screenshots
   captureScreenshots: (leadId: string) =>

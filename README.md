@@ -36,6 +36,7 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Fitur | Status | Catatan |
 |---|---|---|
 | Template redesign per niche | ✅ | 8 niche, masing-masing punya palet, section, dan CTA sendiri |
+| Draft outreach WA/email | ✅ | Pesan disusun dari hasil audit + deep link wa.me/mailto |
 
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
@@ -126,6 +127,27 @@ GET  /api/redesign/templates                          # daftar niche
 POST /api/redesign/{lead_id}/generate?template=jasa   # timpa deteksi otomatis
 ```
 
+## Draft Outreach
+
+Setelah audit dan redesign siap, aplikasi menyusun **draft pesan penawaran**
+yang mengutip temuan audit lead tersebut:
+
+- Kanal: WhatsApp atau email
+- Gaya bahasa: formal atau ramah
+- Menyebut skor audit dan 3 temuan paling berat dalam bahasa awam
+- Menghasilkan deep link `wa.me` / `mailto` yang sudah terisi pesannya
+- Tombol "Tandai sudah dikirim" menaikkan status lead `new` → `contacted`
+  (status yang lebih lanjut seperti `qualified` tidak akan diturunkan)
+
+Aplikasi **tidak mengirim apa pun sendiri**. Pesan dikirim dari akun WhatsApp
+atau email milik user, sehingga MVP tidak perlu tunduk pada ketentuan WhatsApp
+Business API dan tidak menyimpan kredensial kanal apa pun.
+
+```
+GET  /api/outreach/{lead_id}?channel=whatsapp&tone=formal
+POST /api/outreach/{lead_id}/mark-sent?channel=whatsapp
+```
+
 ## Fitur Opsional
 
 ### Screenshot desktop/mobile
@@ -169,9 +191,11 @@ Admin internal selalu bisa mengunduh berkasnya untuk keperluan review.
    temuan, dan ringkasan peluang.
 6. Klik **Generate redesign** untuk membuat konsep, preview, dan
    `index.html` satu file yang bisa diunduh.
-7. Export CSV untuk diserahkan ke tim sales.
-8. (Opsional) Ambil screenshot desktop/mobile untuk bahan before/after.
-9. Admin internal memantau tenant, job, error, dan meninjau hasil redesign
+7. Susun draft penawaran WhatsApp/email dari temuan audit, lalu kirim dari
+   akun Anda sendiri dan tandai sebagai terkirim.
+8. Export CSV untuk diserahkan ke tim sales.
+9. (Opsional) Ambil screenshot desktop/mobile untuk bahan before/after.
+10. Admin internal memantau tenant, job, error, dan meninjau hasil redesign
    melalui menu Admin.
 
 ## Struktur Proyek
@@ -196,7 +220,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 176 test
+  tests/               # 202 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -209,7 +233,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 176 test
+cd backend && python -m pytest        # 202 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```

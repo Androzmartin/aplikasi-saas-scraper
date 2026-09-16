@@ -144,6 +144,8 @@ class LeadOut(ApiModel):
     tags: List[str] = Field(default_factory=list)
     field_confidence: Dict[str, float] = Field(default_factory=dict)
     has_redesign: bool = False
+    outreach_sent_at: Optional[datetime] = None
+    outreach_channel: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -229,6 +231,28 @@ class AdminRedesignOut(ApiModel):
     generated_with: str = "template"
     created_at: datetime
     reviewed_at: Optional[datetime] = None
+
+
+# ----------------------------------------------------------------------- outreach
+
+
+class OutreachDraftOut(ApiModel):
+    lead_id: str
+    channel: str
+    tone: str
+    subject: Optional[str] = None
+    message: str
+    send_url: Optional[str] = None
+    recipient: Optional[str] = None
+    outreach_sent_at: Optional[datetime] = None
+    outreach_channel: Optional[str] = None
+
+
+class OutreachLogged(ApiModel):
+    lead_id: str
+    status: LeadStatus
+    outreach_channel: str
+    outreach_sent_at: datetime
 
 
 # ---------------------------------------------------------------------- screenshot

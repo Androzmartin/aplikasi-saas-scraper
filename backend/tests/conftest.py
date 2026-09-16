@@ -29,13 +29,23 @@ async def mock_db(monkeypatch):
     monkeypatch.setattr(db_module, "get_db", lambda: database)
     monkeypatch.setattr(db_module, "connect", lambda: database)
 
-    # Routers import get_db by name, so patch it where it is used too.
-    for module_path in (
-        "app.deps", "app.routers.auth", "app.routers.projects", "app.routers.scrape",
-        "app.routers.leads", "app.routers.audits", "app.routers.redesign",
-        "app.routers.exports", "app.routers.admin", "app.services.jobs",
-    ):
-        module = __import__(module_path, fromlist=["get_db"])
+    # Routers do `from app.db import get_db`, which binds the original function
+    # at import time, so patch every module that holds such a reference.
+    # Discovered rather than hardcoded: a hardcoded list silently misses each
+    # new router and the tests then run against the wrong database.
+    import importlib
+    import pkgutil
+
+    import app.routers
+    import app.services
+
+    module_paths = ["app.deps"]
+    for package in (app.routers, app.services):
+        for info in pkgutil.iter_modules(package.__path__):
+            module_paths.append(f"{package.__name__}.{info.name}")
+
+    for module_path in module_paths:
+        module = importlib.import_module(module_path)
         if hasattr(module, "get_db"):
             monkeypatch.setattr(module, "get_db", lambda: database)
 
