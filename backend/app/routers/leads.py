@@ -128,7 +128,8 @@ async def update_lead(
 
     updates: Dict[str, Any] = {}
     if payload.status is not None:
-        updates["status"] = payload.status.value
+        # ApiModel uses use_enum_values, so this is already the string value.
+        updates["status"] = payload.status
     if payload.notes is not None:
         updates["notes"] = payload.notes.strip() or None
     if payload.tags is not None:
