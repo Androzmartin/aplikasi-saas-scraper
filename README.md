@@ -56,6 +56,31 @@ Excel/JSON, white-label, dan discovery engine dari pihak ketiga.
 - **AI (opsional)** — Anthropic atau OpenAI untuk rewrite copy; nonaktif secara
   default dan otomatis jatuh kembali ke template deterministik
 
+## Mulai Cepat (Cara Termudah Mencoba)
+
+Butuh Docker saja. Satu perintah, seluruh aplikasi jalan:
+
+```bash
+git clone https://github.com/Androzmartin/aplikasi-saas-scraper.git
+cd aplikasi-saas-scraper
+
+# Wajib: kunci JWT dan password admin
+export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
+export BOOTSTRAP_ADMIN_PASSWORD='ganti-password-ini'
+
+docker compose up --build
+```
+
+Buka **http://localhost:8080**
+
+- Frontend, API, dan MongoDB jalan bersamaan
+- Semuanya satu origin (`/api` di-proxy ke backend), jadi tidak perlu setting CORS
+- Login admin: `admin@example.com` + password yang Anda set di atas
+
+Untuk membuat akun tenant biasa, klik **Daftar sekarang** di halaman login.
+
+Menghentikan: `docker compose down` (tambah `-v` untuk menghapus data juga).
+
 ## Menjalankan secara Lokal
 
 ### 1. Backend
@@ -98,13 +123,34 @@ npm run dev
 Buka `http://localhost:5173`. Vite mem-proxy `/api` ke `http://localhost:8000`,
 jadi tidak perlu konfigurasi CORS tambahan saat pengembangan.
 
-### 3. Docker Compose
+### 3. Docker Compose (semua sekaligus)
 
 ```bash
-export JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
 export BOOTSTRAP_ADMIN_PASSWORD='ganti-password-ini'
 docker compose up --build
 ```
+
+Tiga service: `mongo`, `backend`, dan `frontend` (nginx menyajikan hasil build
+SPA sekaligus mem-proxy `/api` ke backend). Aplikasi diakses di
+**http://localhost:8080**.
+
+Variabel opsional yang bisa diteruskan ke compose:
+`PUBLIC_API_BASE_URL`, `PUBLIC_APP_BASE_URL`, `DUITKU_MERCHANT_CODE`,
+`DUITKU_API_KEY`, `DUITKU_PRODUCTION`, `AI_ENABLED`, `AI_API_KEY`.
+
+### Alternatif tanpa MongoDB lokal
+
+Pakai **MongoDB Atlas** paket gratis (M0) — tidak perlu memasang MongoDB, dan
+sekaligus menutup satu celah verifikasi (perilaku `$text` search pada mongod
+sungguhan). Cukup arahkan `MONGO_URI` ke connection string Atlas:
+
+```
+MONGO_URI=mongodb+srv://user:password@cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority
+MONGO_DB=umkm_scraper
+```
+
+Jangan lupa menambahkan IP server Anda pada *Network Access* di Atlas.
 
 ## Template Redesign per Niche
 
@@ -450,6 +496,37 @@ terlebih dahulu dan sengaja tidak termasuk dalam MVP.
 | `DUITKU_API_KEY` | — | API key Duitku |
 | `DUITKU_PRODUCTION` | `false` | `false` = sandbox, `true` = produksi |
 | `PUBLIC_API_BASE_URL` | `http://localhost:8000` | URL publik API untuk callback Duitku |
+
+## Menguji Pembayaran Duitku
+
+Callback Duitku harus bisa memanggil server Anda dari internet, jadi `localhost`
+tidak cukup. Untuk pengujian, buka tunnel:
+
+```bash
+# pilih salah satu
+cloudflared tunnel --url http://localhost:8080
+ngrok http 8080
+```
+
+Lalu jalankan ulang dengan URL publik dari tunnel tersebut:
+
+```bash
+export PUBLIC_API_BASE_URL=https://xxxx.trycloudflare.com
+export PUBLIC_APP_BASE_URL=https://xxxx.trycloudflare.com
+export DUITKU_MERCHANT_CODE=DXXXX
+export DUITKU_API_KEY=xxxxxxxx
+export DUITKU_PRODUCTION=false     # sandbox
+docker compose up --build
+```
+
+Terakhir, daftarkan URL callback pada dashboard Duitku:
+
+```
+https://xxxx.trycloudflare.com/api/billing/callback
+```
+
+Bila callback tidak sampai (tunnel mati, dsb.), tombol **Cek status** pada
+halaman Langganan akan menanyakan status langsung ke Duitku.
 
 ## Status
 
