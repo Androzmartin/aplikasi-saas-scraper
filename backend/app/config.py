@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     # tenant can download its index.html.
     require_redesign_approval: bool = False
 
+    # --- Google Places (sumber discovery kedua, opsional & berbayar) ---
+    google_places_api_key: str = ""
+    google_places_timeout_seconds: float = 30.0
+
     # --- Duitku payment gateway ---
     duitku_merchant_code: str = ""
     duitku_api_key: str = ""

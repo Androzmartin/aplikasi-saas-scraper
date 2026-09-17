@@ -46,6 +46,57 @@ function ContactRow({ label, value, href, confidence }: {
   )
 }
 
+const SOCIAL_LABELS: Record<string, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  tiktok: 'TikTok',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  twitter: 'X / Twitter',
+  tokopedia: 'Tokopedia',
+  shopee: 'Shopee',
+}
+
+/** Profiles the business linked from its own website. */
+function SocialPanel({ links }: { links: Record<string, string> }) {
+  const entries = Object.entries(links ?? {}).filter(([key]) => key in SOCIAL_LABELS)
+
+  return (
+    <Panel
+      title="Media sosial"
+      description="Diambil dari tautan yang dipasang bisnis di websitenya sendiri."
+    >
+      {entries.length === 0 ? (
+        <p className="py-4 text-sm text-slate-500">
+          Tidak ada tautan media sosial di website ini.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {entries.map(([platform, url]) => (
+            <li key={platform} className="flex items-center justify-between gap-4 py-3">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                {SOCIAL_LABELS[platform]}
+              </span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-[60%] truncate text-sm font-medium text-navy-700 hover:underline"
+              >
+                {url.replace(/^https?:\/\/(www\.)?/, '')}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-400">
+        Kami tidak mengambil data dari server Instagram, Meta, TikTok, atau LinkedIn —
+        keempatnya melarang scraping. Tautan di atas diterbitkan sendiri oleh bisnisnya.
+      </p>
+    </Panel>
+  )
+}
+
 export default function LeadDetail() {
   const { leadId = '' } = useParams()
   const [lead, setLead] = useState<Lead | null>(null)
@@ -169,6 +220,8 @@ export default function LeadDetail() {
             <ContactRow label="Contact person" value={lead.contact_person} confidence={confidence.contact_person} />
             <ContactRow label="Halaman sumber" value={lead.source_page} href={lead.source_page ?? undefined} />
           </Panel>
+
+          <SocialPanel links={lead.social_links} />
 
           <Panel title="Catatan internal">
             <div className="space-y-4">

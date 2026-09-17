@@ -10,6 +10,7 @@ export default function Discovery() {
   const [projects, setProjects] = useState<Project[]>([])
   const [region, setRegion] = useState('jakarta_utara')
   const [category, setCategory] = useState('kuliner')
+  const [provider, setProvider] = useState('osm')
   const [projectId, setProjectId] = useState('')
   const [result, setResult] = useState<DiscoveryResult | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -33,7 +34,7 @@ export default function Discovery() {
     setResult(null)
     setSelected(new Set())
     try {
-      const found = await api.discoverySearch(region, category)
+      const found = await api.discoverySearch(region, category, provider)
       setResult(found)
       // Pre-select everything: the common case is importing the whole batch.
       setSelected(new Set(found.places.map((p) => p.website!).filter(Boolean)))
@@ -42,7 +43,7 @@ export default function Discovery() {
     } finally {
       setSearching(false)
     }
-  }, [region, category])
+  }, [region, category, provider])
 
   function toggle(url: string) {
     setSelected((current) => {
@@ -107,6 +108,16 @@ export default function Discovery() {
                 ))}
               </select>
             </Field>
+            {/* Only rendered when the server has more than one source. */}
+            {(options?.providers.length ?? 0) > 1 && (
+              <Field label="Sumber data">
+                <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
+                  {options?.providers.map((p) => (
+                    <option key={p.key} value={p.key}>{p.label}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field label="Masukkan ke project">
               <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                 {projects.length === 0 && <option value="">(belum ada project)</option>}

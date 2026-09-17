@@ -15,7 +15,7 @@ from app.models.schemas import (
     DiscoverySearchRequest,
     JobCreateResponse,
 )
-from app.services import discovery
+from app.services import discovery, places
 from app.services.jobs import notify_new_jobs
 from app.services.urls import parse_url_list
 
@@ -24,10 +24,17 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 @router.get("/options", response_model=DiscoveryOptions)
 async def get_options(_: Dict[str, Any] = Depends(get_current_user)) -> Any:
-    """Areas and categories the discovery search supports."""
+    """Areas, categories and the data sources available on this server."""
+    providers = [
+        {"key": "osm", "label": "OpenStreetMap (gratis)"},
+    ]
+    if places.is_configured():
+        providers.append({"key": "google", "label": "Google Places (berbayar, cakupan lebih luas)"})
+
     return {
         "regions": discovery.list_regions(),
         "categories": discovery.list_categories(),
+        "providers": providers,
         "attribution": discovery.ATTRIBUTION,
     }
 
@@ -40,6 +47,31 @@ async def search_places(
 
     Nothing is saved: this only returns candidates for the user to review.
     """
+    if payload.provider == "google":
+        if payload.region not in discovery.REGION_BBOX:
+            raise HTTPException(status_code=400, detail=f"Wilayah tidak dikenal: {payload.region}")
+        try:
+            found = await places.search_nearby(
+                discovery.REGION_BBOX[payload.region], payload.category, payload.limit
+            )
+        except places.PlacesNotConfigured as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except places.PlacesError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+        return {
+            "region": payload.region,
+            "category": payload.category,
+            "provider": "google",
+            "places": [place.to_dict() for place in found],
+            # Google only returns places it has a website for, so there is no
+            # social-only bucket to report here.
+            "social_only": [],
+            "attribution": places.ATTRIBUTION,
+        }
+
     try:
         result = await discovery.search(payload.region, payload.category, payload.limit)
     except ValueError as exc:
@@ -52,6 +84,7 @@ async def search_places(
     return {
         "region": payload.region,
         "category": payload.category,
+        "provider": "osm",
         "places": [place.to_dict() for place in result.places],
         "social_only": [place.to_dict() for place in result.social_only],
         "attribution": result.attribution,

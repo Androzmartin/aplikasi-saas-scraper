@@ -88,6 +88,7 @@ class ExtractedContact:
     contact_person: Optional[str] = None
     region: str = "unknown"
     source_page: Optional[str] = None
+    social_links: Dict[str, str] = field(default_factory=dict)
     field_sources: Dict[str, str] = field(default_factory=dict)
     field_confidence: Dict[str, float] = field(default_factory=dict)
 
@@ -101,6 +102,7 @@ class ExtractedContact:
             "contact_person": self.contact_person,
             "region": self.region,
             "source_page": self.source_page,
+            "social_links": self.social_links,
             "field_sources": self.field_sources,
             "field_confidence": self.field_confidence,
         }
@@ -385,6 +387,68 @@ def extract_contact_person(text: str) -> Optional[str]:
     return None
 
 
+# Social profiles the business linked from its own website. This is the only
+# lawful way to collect these: the business published the links itself, on its
+# own server, and we read them while crawling a page we are already allowed to
+# fetch. Nothing is requested from Instagram, Meta, TikTok or LinkedIn - all of
+# which forbid scraping in their terms.
+_SOCIAL_PATTERNS: Dict[str, re.Pattern] = {
+    "instagram": re.compile(r"^https?://(?:www\.)?instagram\.com/([A-Za-z0-9._]+)", re.I),
+    "facebook": re.compile(r"^https?://(?:www\.|web\.|m\.)?facebook\.com/([A-Za-z0-9.\-]+)", re.I),
+    "tiktok": re.compile(r"^https?://(?:www\.)?tiktok\.com/@([A-Za-z0-9._]+)", re.I),
+    "linkedin": re.compile(r"^https?://(?:[a-z]{2}\.)?linkedin\.com/(?:company|in)/([A-Za-z0-9._\-]+)", re.I),
+    "youtube": re.compile(r"^https?://(?:www\.)?youtube\.com/(?:@|c/|channel/|user/)([A-Za-z0-9._\-]+)", re.I),
+    "twitter": re.compile(r"^https?://(?:www\.)?(?:twitter|x)\.com/([A-Za-z0-9_]+)", re.I),
+    "tokopedia": re.compile(r"^https?://(?:www\.)?tokopedia\.com/([A-Za-z0-9._\-]+)", re.I),
+    "shopee": re.compile(r"^https?://(?:www\.)?shopee\.co\.id/([A-Za-z0-9._\-]+)", re.I),
+}
+
+# Paths that are the platform's own furniture, not a business account.
+_SOCIAL_NOISE = {
+    "sharer", "share", "share.php", "home", "login", "signup", "explore",
+    "privacy", "policy", "terms", "help", "about", "pages", "profile.php",
+    "intent", "hashtag", "p", "reel", "reels", "tv", "watch", "groups",
+    "plugins", "dialog", "tr", "events", "posts", "photo", "video",
+}
+
+
+def extract_social_links(soup: BeautifulSoup) -> Dict[str, str]:
+    """Collect social profile URLs the site links to, one per platform.
+
+    The first match wins: sites usually link their own profile in the header or
+    footer before any share buttons appear.
+    """
+    found: Dict[str, str] = {}
+
+    for anchor in soup.find_all("a", href=True):
+        href = anchor["href"].strip()
+        if not href.lower().startswith("http"):
+            continue
+
+        for platform, pattern in _SOCIAL_PATTERNS.items():
+            if platform in found:
+                continue
+            match = pattern.match(href)
+            if not match:
+                continue
+            handle = match.group(1).strip("/").lower()
+            if not handle or handle in _SOCIAL_NOISE:
+                continue
+            # Drop tracking parameters; the profile URL is the useful part.
+            found[platform] = href.split("?")[0].rstrip("/")
+
+    return found
+
+
+def social_handle(platform: str, url: str) -> Optional[str]:
+    """The account name on its own, for display next to the link."""
+    pattern = _SOCIAL_PATTERNS.get(platform)
+    if not pattern or not url:
+        return None
+    match = pattern.match(url)
+    return match.group(1).strip("/") if match else None
+
+
 def page_text(soup: BeautifulSoup) -> str:
     """Visible text only — scripts and styles are stripped."""
     clone = BeautifulSoup(str(soup), "lxml")
@@ -426,6 +490,7 @@ def extract_from_page(html: str, url: str) -> Dict[str, Any]:
         "address": address,
         "address_from_structured": bool(structured.get("address")),
         "contact_person": extract_contact_person(text),
+        "social_links": extract_social_links(soup),
         "all_emails": emails,
         "all_phones": phones,
         "source_url": url,
@@ -485,6 +550,11 @@ def merge_page_results(results: List[Dict[str, Any]]) -> ExtractedContact:
         )
         take("contact_person", result.get("contact_person"), url, _CONFIDENCE["labelled"])
         take("business_name", result.get("business_name"), url, _CONFIDENCE["derived"])
+
+        # Merged across pages rather than taken from one: a site often links
+        # Instagram in the footer and LinkedIn only on the About page.
+        for platform, link in (result.get("social_links") or {}).items():
+            contact.social_links.setdefault(platform, link)
 
     contact.region = detect_region(contact.address, contact.business_name)
     return contact

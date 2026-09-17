@@ -28,11 +28,19 @@ CSV_COLUMNS = [
     "region",
     "audit_score",
     "status",
+    "instagram",
+    "facebook",
+    "tiktok",
+    "linkedin",
     "tags",
     "notes",
     "source_page",
     "created_at",
 ]
+
+# Kolom sosial yang diekspor, diambil dari link yang dipasang bisnis di
+# websitenya sendiri.
+SOCIAL_COLUMNS = ["instagram", "facebook", "tiktok", "linkedin"]
 
 MAX_EXPORT_ROWS = 10_000
 
@@ -72,6 +80,7 @@ async def export_leads_csv(
         cursor = db.leads.find(query).sort("created_at", -1).limit(MAX_EXPORT_ROWS)
         async for lead in cursor:
             created = lead.get("created_at")
+            social = lead.get("social_links") or {}
             writer.writerow(
                 [
                     _csv_safe(lead.get("business_name")),
@@ -84,6 +93,7 @@ async def export_leads_csv(
                     _csv_safe(region_label(lead.get("region"))),
                     _csv_safe(lead.get("audit_score")),
                     _csv_safe(lead.get("status")),
+                    *[_csv_safe(social.get(name)) for name in SOCIAL_COLUMNS],
                     _csv_safe(", ".join(lead.get("tags") or [])),
                     _csv_safe(lead.get("notes")),
                     _csv_safe(lead.get("source_page")),

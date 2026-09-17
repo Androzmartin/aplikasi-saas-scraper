@@ -85,6 +85,7 @@ export interface Lead {
   notes: string | null
   tags: string[]
   field_confidence: Record<string, number>
+  social_links: Record<string, string>
   has_redesign: boolean
   outreach_sent_at: string | null
   outreach_channel: string | null
@@ -208,6 +209,7 @@ export interface DiscoveryOption {
 export interface DiscoveryOptions {
   regions: DiscoveryOption[]
   categories: DiscoveryOption[]
+  providers: DiscoveryOption[]
   attribution: string
 }
 
@@ -226,6 +228,7 @@ export interface DiscoveredPlace {
 export interface DiscoveryResult {
   region: string
   category: string
+  provider: string
   places: DiscoveredPlace[]
   social_only: DiscoveredPlace[]
   attribution: string

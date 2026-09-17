@@ -146,6 +146,8 @@ class LeadOut(ApiModel):
     notes: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     field_confidence: Dict[str, float] = Field(default_factory=dict)
+    # Profil sosial yang ditautkan bisnis dari websitenya sendiri.
+    social_links: Dict[str, str] = Field(default_factory=dict)
     has_redesign: bool = False
     outreach_sent_at: Optional[datetime] = None
     outreach_channel: Optional[str] = None
@@ -247,12 +249,15 @@ class DiscoveryOption(ApiModel):
 class DiscoveryOptions(ApiModel):
     regions: List[DiscoveryOption] = Field(default_factory=list)
     categories: List[DiscoveryOption] = Field(default_factory=list)
+    # Google Places only appears when the server has an API key configured.
+    providers: List[DiscoveryOption] = Field(default_factory=list)
     attribution: str = ""
 
 
 class DiscoverySearchRequest(ApiModel):
     region: str = Field(min_length=2, max_length=40)
     category: str = Field(min_length=2, max_length=40)
+    provider: str = Field(default="osm", pattern="^(osm|google)$")
     limit: int = Field(default=60, ge=1, le=200)
 
 
@@ -271,6 +276,7 @@ class DiscoveredPlaceOut(ApiModel):
 class DiscoveryResultOut(ApiModel):
     region: str
     category: str
+    provider: str = "osm"
     places: List[DiscoveredPlaceOut] = Field(default_factory=list)
     social_only: List[DiscoveredPlaceOut] = Field(default_factory=list)
     attribution: str = ""

@@ -190,10 +190,10 @@ export const api = {
 
   // discovery
   discoveryOptions: () => request<DiscoveryOptions>('/discovery/options'),
-  discoverySearch: (region: string, category: string, limit = 60) =>
+  discoverySearch: (region: string, category: string, provider = 'osm', limit = 60) =>
     request<DiscoveryResult>('/discovery/search', {
       method: 'POST',
-      body: JSON.stringify({ region, category, limit }),
+      body: JSON.stringify({ region, category, provider, limit }),
     }),
   discoveryImport: (project_id: string, urls: string[]) =>
     request<JobCreateResponse>('/discovery/import', {
