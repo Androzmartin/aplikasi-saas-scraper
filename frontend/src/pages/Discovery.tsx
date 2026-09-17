@@ -1,0 +1,256 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ApiError, api } from '@/api/client'
+import type { DiscoveredPlace, DiscoveryOptions, DiscoveryResult, Project } from '@/api/types'
+import { Alert, EmptyState, Field, PageHeader, Panel, Spinner } from '@/components/ui'
+
+export default function Discovery() {
+  const navigate = useNavigate()
+  const [options, setOptions] = useState<DiscoveryOptions | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [region, setRegion] = useState('jakarta_utara')
+  const [category, setCategory] = useState('kuliner')
+  const [projectId, setProjectId] = useState('')
+  const [result, setResult] = useState<DiscoveryResult | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [searching, setSearching] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    void api.discoveryOptions().then(setOptions).catch(() => setOptions(null))
+    void api.listProjects().then((list) => {
+      setProjects(list)
+      if (list.length > 0) setProjectId((current) => current || list[0].id)
+    })
+  }, [])
+
+  const search = useCallback(async () => {
+    setSearching(true)
+    setError(null)
+    setNotice(null)
+    setResult(null)
+    setSelected(new Set())
+    try {
+      const found = await api.discoverySearch(region, category)
+      setResult(found)
+      // Pre-select everything: the common case is importing the whole batch.
+      setSelected(new Set(found.places.map((p) => p.website!).filter(Boolean)))
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Pencarian gagal')
+    } finally {
+      setSearching(false)
+    }
+  }, [region, category])
+
+  function toggle(url: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(url)) next.delete(url)
+      else next.add(url)
+      return next
+    })
+  }
+
+  async function importSelected() {
+    if (!projectId || selected.size === 0) return
+    setImporting(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const response = await api.discoveryImport(projectId, Array.from(selected))
+      const skipped = response.rejected.length
+      setNotice(
+        `${response.created.length} website masuk antrean scraping` +
+          (skipped > 0 ? `, ${skipped} dilewati (sudah pernah diproses).` : '.'),
+      )
+      if (response.created.length > 0) {
+        setTimeout(() => navigate(`/projects/${projectId}`), 1400)
+      }
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Gagal menambahkan ke project')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const regionLabel = useMemo(
+    () => options?.regions.find((r) => r.key === region)?.label ?? region,
+    [options, region],
+  )
+
+  return (
+    <>
+      <PageHeader
+        title="Temukan Bisnis"
+        description="Cari UMKM yang sudah punya website berdasarkan wilayah dan kategori, lalu kirim ke project untuk di-scraping."
+      />
+
+      {error && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
+      {notice && <div className="mb-4"><Alert tone="success">{notice}</Alert></div>}
+
+      <div className="mb-6">
+        <Panel>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Wilayah">
+              <select className="input" value={region} onChange={(e) => setRegion(e.target.value)}>
+                {options?.regions.map((r) => (
+                  <option key={r.key} value={r.key}>{r.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Kategori usaha">
+              <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {options?.categories.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Masukkan ke project">
+              <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                {projects.length === 0 && <option value="">(belum ada project)</option>}
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </Field>
+            <div className="flex items-end">
+              <button className="btn-primary w-full" onClick={() => void search()} disabled={searching}>
+                {searching ? 'Mencari…' : 'Cari bisnis'}
+              </button>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-slate-400">
+            Sumber data: {options?.attribution ?? 'OpenStreetMap'} — data terbuka, bukan hasil
+            scraping mesin pencari.
+          </p>
+        </Panel>
+      </div>
+
+      {searching && <Spinner label="Mencari di OpenStreetMap…" />}
+
+      {result && !searching && (
+        <>
+          <Panel
+            title={`${result.places.length} bisnis punya website di ${regionLabel}`}
+            description="Centang yang ingin Anda scraping, lalu kirim ke project."
+            actions={
+              <>
+                <button
+                  className="btn-secondary"
+                  onClick={() =>
+                    setSelected(
+                      selected.size === result.places.length
+                        ? new Set()
+                        : new Set(result.places.map((p) => p.website!).filter(Boolean)),
+                    )
+                  }
+                >
+                  {selected.size === result.places.length ? 'Kosongkan' : 'Pilih semua'}
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => void importSelected()}
+                  disabled={importing || selected.size === 0 || !projectId}
+                >
+                  {importing ? 'Mengirim…' : `Scraping ${selected.size} terpilih`}
+                </button>
+              </>
+            }
+            bodyClassName=""
+          >
+            {result.places.length === 0 ? (
+              <EmptyState
+                title="Tidak ada bisnis dengan website di area ini"
+                description="Coba wilayah atau kategori lain. Data OpenStreetMap tidak selalu lengkap untuk semua area."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="table-head">
+                    <tr>
+                      <th className="w-10 px-5 py-3"></th>
+                      <th className="px-5 py-3">Nama bisnis</th>
+                      <th className="px-5 py-3">Website</th>
+                      <th className="px-5 py-3">Alamat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.places.map((place) => (
+                      <PlaceRow
+                        key={place.osm_id}
+                        place={place}
+                        checked={selected.has(place.website!)}
+                        onToggle={() => toggle(place.website!)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+
+          {result.social_only.length > 0 && (
+            <div className="mt-6">
+              <Panel
+                title={`${result.social_only.length} bisnis belum punya website`}
+                description="Hanya punya media sosial. Tidak bisa di-scraping, tapi justru calon klien paling potensial."
+                bodyClassName=""
+              >
+                <ul className="divide-y divide-slate-100">
+                  {result.social_only.map((place) => (
+                    <li key={place.osm_id} className="flex items-center justify-between gap-4 px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">{place.name}</p>
+                        <p className="truncate text-xs text-slate-500">{place.address ?? '—'}</p>
+                      </div>
+                      <a
+                        href={place.raw_website.startsWith('http') ? place.raw_website : `https://${place.raw_website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 text-xs font-medium text-navy-700 hover:underline"
+                      >
+                        Lihat sosmed
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+function PlaceRow({
+  place, checked, onToggle,
+}: { place: DiscoveredPlace; checked: boolean; onToggle: () => void }) {
+  return (
+    <tr className={checked ? 'bg-navy-50/40' : 'hover:bg-slate-50'}>
+      <td className="px-5 py-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="h-4 w-4 rounded border-slate-300 text-navy-900 focus:ring-navy-500"
+          aria-label={`Pilih ${place.name}`}
+        />
+      </td>
+      <td className="table-cell font-medium text-slate-900">{place.name}</td>
+      <td className="table-cell max-w-xs">
+        <a
+          href={place.website ?? '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block truncate text-navy-700 hover:underline"
+        >
+          {place.website}
+        </a>
+      </td>
+      <td className="table-cell max-w-xs truncate text-slate-500">{place.address ?? '—'}</td>
+    </tr>
+  )
+}

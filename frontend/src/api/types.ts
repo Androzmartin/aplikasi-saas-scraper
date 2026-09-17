@@ -200,6 +200,37 @@ export interface Payment {
   expires_at: string | null
 }
 
+export interface DiscoveryOption {
+  key: string
+  label: string
+}
+
+export interface DiscoveryOptions {
+  regions: DiscoveryOption[]
+  categories: DiscoveryOption[]
+  attribution: string
+}
+
+export interface DiscoveredPlace {
+  name: string
+  website: string | null
+  raw_website: string
+  address: string | null
+  category: string
+  lat: number | null
+  lon: number | null
+  osm_id: string
+  is_social_only: boolean
+}
+
+export interface DiscoveryResult {
+  region: string
+  category: string
+  places: DiscoveredPlace[]
+  social_only: DiscoveredPlace[]
+  attribution: string
+}
+
 export interface MetricBucket {
   key: string
   label: string

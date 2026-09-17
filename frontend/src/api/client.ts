@@ -1,5 +1,6 @@
 import type {
   ActivityLog, AdminRedesign, AdminStats, AnalyticsOverview, ApprovalStatus, Audit, Job, JobCreateResponse,
+  DiscoveryOptions, DiscoveryResult,
   Lead, MeResponse, NicheTemplate, OutreachDraft, PageResult, Payment, Plan, Project, Redesign,
   Screenshots, Subscription, Tenant,
   TokenResponse, User,
@@ -186,6 +187,19 @@ export const api = {
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
+
+  // discovery
+  discoveryOptions: () => request<DiscoveryOptions>('/discovery/options'),
+  discoverySearch: (region: string, category: string, limit = 60) =>
+    request<DiscoveryResult>('/discovery/search', {
+      method: 'POST',
+      body: JSON.stringify({ region, category, limit }),
+    }),
+  discoveryImport: (project_id: string, urls: string[]) =>
+    request<JobCreateResponse>('/discovery/import', {
+      method: 'POST',
+      body: JSON.stringify({ project_id, urls }),
+    }),
 
   // billing
   listPlans: () => request<Plan[]>('/billing/plans'),

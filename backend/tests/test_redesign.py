@@ -54,7 +54,19 @@ class TestSingleFileOutput:
 
 
 def test_missing_contact_fields_still_render():
+    """A lead with no phone/email must still produce a usable page."""
+    import html as html_lib
+
+    from app.services.templates import get_template
+
     sparse = {"business_name": "Toko Sepi", "region": "unknown"}
-    html = render_index_html(sparse, build_concept(sparse, None), None)
+    concept = build_concept(sparse, None)
+    html = render_index_html(sparse, concept, None)
+
     assert "Toko Sepi" in html
-    assert "Hubungi Kami" in html
+    # The call to action comes from the niche template rather than a hardcoded
+    # string, so assert against that label.
+    cta_label = get_template(concept["template_key"]).cta_label
+    assert html_lib.escape(cta_label) in html
+    # With no number to link to, the CTA falls back to the contact section.
+    assert 'href="#kontak"' in html

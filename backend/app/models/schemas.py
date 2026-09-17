@@ -233,6 +233,51 @@ class AdminRedesignOut(ApiModel):
     reviewed_at: Optional[datetime] = None
 
 
+# ---------------------------------------------------------------------- discovery
+
+
+class DiscoveryOption(ApiModel):
+    key: str
+    label: str
+
+
+class DiscoveryOptions(ApiModel):
+    regions: List[DiscoveryOption] = Field(default_factory=list)
+    categories: List[DiscoveryOption] = Field(default_factory=list)
+    attribution: str = ""
+
+
+class DiscoverySearchRequest(ApiModel):
+    region: str = Field(min_length=2, max_length=40)
+    category: str = Field(min_length=2, max_length=40)
+    limit: int = Field(default=60, ge=1, le=200)
+
+
+class DiscoveredPlaceOut(ApiModel):
+    name: str
+    website: Optional[str] = None
+    raw_website: str = ""
+    address: Optional[str] = None
+    category: str = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    osm_id: str = ""
+    is_social_only: bool = False
+
+
+class DiscoveryResultOut(ApiModel):
+    region: str
+    category: str
+    places: List[DiscoveredPlaceOut] = Field(default_factory=list)
+    social_only: List[DiscoveredPlaceOut] = Field(default_factory=list)
+    attribution: str = ""
+
+
+class DiscoveryImportRequest(ApiModel):
+    project_id: str
+    urls: List[str] = Field(min_length=1, max_length=200)
+
+
 # ------------------------------------------------------------------------ billing
 
 
