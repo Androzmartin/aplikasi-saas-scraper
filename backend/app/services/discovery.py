@@ -127,6 +127,9 @@ class DiscoveredPlace:
     lon: Optional[float]
     osm_id: str
     is_social_only: bool = False
+    # Only Google supplies these; OpenStreetMap has no ratings.
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -139,6 +142,8 @@ class DiscoveredPlace:
             "lon": self.lon,
             "osm_id": self.osm_id,
             "is_social_only": self.is_social_only,
+            "rating": self.rating,
+            "review_count": self.review_count,
         }
 
 

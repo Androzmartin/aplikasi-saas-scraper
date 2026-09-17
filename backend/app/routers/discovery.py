@@ -47,13 +47,26 @@ async def search_places(
 
     Nothing is saved: this only returns candidates for the user to review.
     """
+    if payload.keyword and payload.provider != "google":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Pencarian kata kunci hanya tersedia lewat Google Places. "
+                "Data nama usaha di OpenStreetMap terlalu sedikit untuk dicari begitu."
+            ),
+        )
+
     if payload.provider == "google":
         if payload.region not in discovery.REGION_BBOX:
             raise HTTPException(status_code=400, detail=f"Wilayah tidak dikenal: {payload.region}")
+        bbox = discovery.REGION_BBOX[payload.region]
         try:
-            found = await places.search_nearby(
-                discovery.REGION_BBOX[payload.region], payload.category, payload.limit
-            )
+            if payload.keyword:
+                found = await places.search_text(
+                    payload.keyword, bbox, payload.max_rating, payload.min_reviews
+                )
+            else:
+                found = await places.search_nearby(bbox, payload.category, payload.limit)
         except places.PlacesNotConfigured as exc:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
         except ValueError as exc:

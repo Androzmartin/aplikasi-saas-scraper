@@ -223,6 +223,8 @@ export interface DiscoveredPlace {
   lon: number | null
   osm_id: string
   is_social_only: boolean
+  rating: number | null
+  review_count: number | null
 }
 
 export interface DiscoveryResult {

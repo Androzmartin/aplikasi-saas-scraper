@@ -11,6 +11,8 @@ export default function Discovery() {
   const [region, setRegion] = useState('jakarta_utara')
   const [category, setCategory] = useState('kuliner')
   const [provider, setProvider] = useState('osm')
+  const [keyword, setKeyword] = useState('')
+  const [maxRating, setMaxRating] = useState('')
   const [projectId, setProjectId] = useState('')
   const [result, setResult] = useState<DiscoveryResult | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -34,7 +36,13 @@ export default function Discovery() {
     setResult(null)
     setSelected(new Set())
     try {
-      const found = await api.discoverySearch(region, category, provider)
+      const found = await api.discoverySearch({
+        region,
+        category,
+        provider,
+        keyword: provider === 'google' && keyword.trim() ? keyword.trim() : undefined,
+        max_rating: provider === 'google' && maxRating ? Number(maxRating) : undefined,
+      })
       setResult(found)
       // Pre-select everything: the common case is importing the whole batch.
       setSelected(new Set(found.places.map((p) => p.website!).filter(Boolean)))
@@ -43,7 +51,7 @@ export default function Discovery() {
     } finally {
       setSearching(false)
     }
-  }, [region, category, provider])
+  }, [region, category, provider, keyword, maxRating])
 
   function toggle(url: string) {
     setSelected((current) => {
@@ -132,6 +140,36 @@ export default function Discovery() {
               </button>
             </div>
           </div>
+          {/* Keyword and rating only exist on Google: OpenStreetMap has no
+              ratings, and its coverage of Indonesian business names is too
+              sparse to search by keyword. */}
+          {provider === 'google' && (
+            <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+              <Field
+                label="Kata kunci (opsional)"
+                hint="Contoh: bengkel mobil, klinik gigi, butik hijab. Kosongkan untuk memakai kategori di atas."
+              >
+                <input
+                  className="input"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="bengkel mobil"
+                />
+              </Field>
+              <Field
+                label="Rating maksimal"
+                hint="Rating rendah = peluang redesign paling besar. Yang belum punya rating tetap ditampilkan."
+              >
+                <select className="input" value={maxRating} onChange={(e) => setMaxRating(e.target.value)}>
+                  <option value="">Semua rating</option>
+                  <option value="3">≤ 3,0 — sangat perlu dibenahi</option>
+                  <option value="3.5">≤ 3,5 — perlu dibenahi</option>
+                  <option value="4">≤ 4,0 — masih bisa ditingkatkan</option>
+                </select>
+              </Field>
+            </div>
+          )}
+
           <p className="mt-3 text-xs text-slate-400">
             Sumber data: {options?.attribution ?? 'OpenStreetMap'} — data terbuka, bukan hasil
             scraping mesin pencari.
@@ -183,6 +221,7 @@ export default function Discovery() {
                     <tr>
                       <th className="w-10 px-5 py-3"></th>
                       <th className="px-5 py-3">Nama bisnis</th>
+                      <th className="px-5 py-3">Rating</th>
                       <th className="px-5 py-3">Website</th>
                       <th className="px-5 py-3">Alamat</th>
                     </tr>
@@ -251,6 +290,26 @@ function PlaceRow({
         />
       </td>
       <td className="table-cell font-medium text-slate-900">{place.name}</td>
+      <td className="table-cell">
+        {place.rating === null ? (
+          <span className="text-xs text-slate-400">—</span>
+        ) : (
+          <span
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
+              place.rating < 3.5
+                ? 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                : place.rating < 4.2
+                  ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                  : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+            }`}
+          >
+            ★ {place.rating.toFixed(1)}
+            {place.review_count ? (
+              <span className="font-normal opacity-70">({place.review_count})</span>
+            ) : null}
+          </span>
+        )}
+      </td>
       <td className="table-cell max-w-xs">
         <a
           href={place.website ?? '#'}

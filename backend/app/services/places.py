@@ -26,6 +26,7 @@ from app.services.urls import InvalidUrlError, normalize_url
 logger = logging.getLogger(__name__)
 
 ENDPOINT = "https://places.googleapis.com/v1/places:searchNearby"
+TEXT_ENDPOINT = "https://places.googleapis.com/v1/places:searchText"
 ATTRIBUTION = "Data tempat © Google"
 
 # Exactly what the lead pipeline consumes. Every extra field costs money.
@@ -38,6 +39,14 @@ FIELD_MASK = ",".join(
         "places.nationalPhoneNumber",
     ]
 )
+
+# Keyword search additionally pulls the rating, which is the whole point of that
+# mode: a business with a website and a poor rating is the strongest redesign
+# prospect. rating and userRatingCount are Enterprise-tier fields, and the call
+# is already Enterprise because of websiteUri, so this adds no tier jump.
+TEXT_FIELD_MASK = FIELD_MASK + ",places.rating,places.userRatingCount,nextPageToken"
+
+MAX_PAGES = 3  # 3 x 20 = up to 60 businesses per search
 
 MAX_RESULTS_PER_CALL = 20  # hard API limit
 MAX_RADIUS_M = 50_000.0    # hard API limit
@@ -86,7 +95,112 @@ def centre_and_radius(bbox: Tuple[float, float, float, float]) -> Tuple[float, f
     return lat, lon, min(radius, MAX_RADIUS_M)
 
 
-def parse_places(payload: Dict[str, Any], category: str) -> List[Any]:
+async def search_text(
+    query: str,
+    bbox: Tuple[float, float, float, float],
+    max_rating: Optional[float] = None,
+    min_reviews: int = 0,
+    pages: int = MAX_PAGES,
+) -> List[Any]:
+    """Free-text search: what the client actually asks for, in their words.
+
+    max_rating is the lead-generation filter. Google's own minRating parameter
+    only filters upward, so poor performers have to be found by reading the
+    rating and filtering here - which is why the rating field is requested.
+    """
+    if not is_configured():
+        raise PlacesNotConfigured(
+            "Google Places belum dikonfigurasi. Isi GOOGLE_PLACES_API_KEY pada server."
+        )
+    if not query.strip():
+        raise ValueError("Kata kunci tidak boleh kosong")
+
+    south, west, north, east = bbox
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": settings.google_places_api_key,
+        "X-Goog-FieldMask": TEXT_FIELD_MASK,
+    }
+    body: Dict[str, Any] = {
+        "textQuery": query.strip(),
+        "pageSize": MAX_RESULTS_PER_CALL,
+        "languageCode": "id",
+        "regionCode": "ID",
+        "locationRestriction": {
+            "rectangle": {
+                "low": {"latitude": south, "longitude": west},
+                "high": {"latitude": north, "longitude": east},
+            }
+        },
+    }
+
+    collected: List[Any] = []
+    page_token: Optional[str] = None
+
+    async with httpx.AsyncClient(timeout=settings.google_places_timeout_seconds) as client:
+        for _ in range(max(1, min(pages, MAX_PAGES))):
+            if page_token:
+                body["pageToken"] = page_token
+            try:
+                response = await client.post(TEXT_ENDPOINT, json=body, headers=headers)
+            except httpx.HTTPError as exc:
+                raise PlacesError(
+                    f"Tidak bisa menghubungi Google Places: {exc.__class__.__name__}"
+                ) from exc
+
+            _raise_for_status(response)
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise PlacesError("Balasan Google Places bukan JSON yang valid") from exc
+
+            collected.extend(
+                parse_places(payload, "keyword", max_rating=max_rating, min_reviews=min_reviews)
+            )
+
+            page_token = payload.get("nextPageToken")
+            if not page_token:
+                break
+
+    # De-duplicate across pages by website.
+    unik: List[Any] = []
+    seen: set = set()
+    for place in collected:
+        key = (place.website or "").rstrip("/").lower()
+        if key and key not in seen:
+            seen.add(key)
+            unik.append(place)
+
+    logger.info("Google Places teks %r: %s hasil", query, len(unik))
+    return unik
+
+
+def _raise_for_status(response: httpx.Response) -> None:
+    """Turn Google's error responses into messages the operator can act on."""
+    if response.status_code == 403:
+        raise PlacesError(
+            "Google menolak API key (403). Pastikan Places API (New) sudah diaktifkan, "
+            "billing aktif, dan pembatasan key mengizinkan server ini."
+        )
+    if response.status_code == 429:
+        raise PlacesError("Kuota Google Places habis untuk saat ini (429).")
+    if response.status_code >= 400:
+        detail = ""
+        try:
+            detail = (response.json().get("error") or {}).get("message", "")
+        except ValueError:
+            detail = response.text[:200]
+        raise PlacesError(
+            f"Google Places menolak permintaan (HTTP {response.status_code}): {detail}"
+        )
+
+
+def parse_places(
+    payload: Dict[str, Any],
+    category: str,
+    max_rating: Optional[float] = None,
+    min_reviews: int = 0,
+) -> List[Any]:
     """Map the Google response onto the same shape the OSM provider returns."""
     from app.services.discovery import DiscoveredPlace
 
@@ -106,8 +220,19 @@ def parse_places(payload: Dict[str, Any], category: str) -> List[Any]:
         key = website.rstrip("/").lower()
         if key in seen:
             continue
-        seen.add(key)
 
+        rating = item.get("rating")
+        reviews = item.get("userRatingCount") or 0
+
+        # The redesign pitch lands hardest on a business that already invested in
+        # a website and is still rated poorly. A place with no rating at all is
+        # kept: no rating is not evidence of a good one.
+        if max_rating is not None and isinstance(rating, (int, float)) and rating > max_rating:
+            continue
+        if min_reviews and reviews < min_reviews:
+            continue
+
+        seen.add(key)
         name = ((item.get("displayName") or {}).get("text") or "").strip() or "(tanpa nama)"
         places.append(
             DiscoveredPlace(
@@ -120,6 +245,8 @@ def parse_places(payload: Dict[str, Any], category: str) -> List[Any]:
                 lon=None,
                 osm_id=f"google/{item.get('id', '')}",
                 is_social_only=False,
+                rating=float(rating) if isinstance(rating, (int, float)) else None,
+                review_count=int(reviews) if reviews else None,
             )
         )
 

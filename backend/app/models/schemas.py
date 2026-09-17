@@ -256,8 +256,15 @@ class DiscoveryOptions(ApiModel):
 
 class DiscoverySearchRequest(ApiModel):
     region: str = Field(min_length=2, max_length=40)
-    category: str = Field(min_length=2, max_length=40)
+    category: str = Field(default="kuliner", min_length=2, max_length=40)
     provider: str = Field(default="osm", pattern="^(osm|google)$")
+    # Free-text search in the client's own words. Google only; OpenStreetMap
+    # coverage of Indonesian UMKM names is far too thin to search this way.
+    keyword: Optional[str] = Field(default=None, max_length=120)
+    # Lead filter: a business with a website and a poor rating is the strongest
+    # redesign prospect.
+    max_rating: Optional[float] = Field(default=None, ge=1.0, le=5.0)
+    min_reviews: int = Field(default=0, ge=0, le=10_000)
     limit: int = Field(default=60, ge=1, le=200)
 
 
@@ -271,6 +278,8 @@ class DiscoveredPlaceOut(ApiModel):
     lon: Optional[float] = None
     osm_id: str = ""
     is_social_only: bool = False
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
 
 
 class DiscoveryResultOut(ApiModel):
