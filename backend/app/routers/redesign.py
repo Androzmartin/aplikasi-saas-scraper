@@ -14,7 +14,7 @@ from app.db import get_db
 from app.deps import get_current_user, get_owned_lead, is_admin
 from app.models.schemas import RedesignOut, TemplateOut
 from app.serializers import redesign_out
-from app.services.ai import enrich_concept
+from app.services.ai import classify_niche, enrich_concept
 from app.services.redesign import build_concept, build_preview_html, render_index_html
 from app.services.templates import list_templates
 from app.services.storage import storage
@@ -45,7 +45,11 @@ async def generate_redesign(
     audit = await db.website_audits.find_one({"lead_id": lead["_id"]}, sort=[("created_at", -1)])
 
     concept = build_concept(lead, audit, template)
-    concept = await enrich_concept(concept, lead, audit)
+    # AI classification can override the keyword-based niche guess.
+    detected = await classify_niche(lead.get("business_name") or "", lead.get("page_text") or "")
+    if detected and not template:
+        concept = build_concept(lead, audit, detected)
+    concept = await enrich_concept(concept, lead, audit, lead.get("page_text") or "")
 
     index_html = render_index_html(lead, concept, audit)
 

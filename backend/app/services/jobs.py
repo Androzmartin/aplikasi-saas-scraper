@@ -27,6 +27,8 @@ _shutdown = asyncio.Event()
 _wakeup = asyncio.Event()
 
 IDLE_POLL_SECONDS = 3.0
+# Enough page text for the optional AI to understand the business.
+AI_CONTEXT_CHARS = 6_000
 STALE_RUNNING_MINUTES = 15
 
 
@@ -120,6 +122,19 @@ async def _upsert_lead(job: Dict[str, Any], data: Dict[str, Any], html: str) -> 
 
     audit_result = audit_service.run_audit(html, data)
 
+    # Keep a trimmed copy of the visible text so the optional AI enrichment has
+    # the business's own words to work from instead of just its name.
+    page_text = ""
+    if html:
+        try:
+            from bs4 import BeautifulSoup
+
+            from app.services.extractor import page_text as extract_text
+
+            page_text = extract_text(BeautifulSoup(html, "lxml"))[:AI_CONTEXT_CHARS]
+        except Exception:  # noqa: BLE001 - context is a nicety, never fatal
+            page_text = ""
+
     lead_doc = {
         "project_id": job["project_id"],
         "tenant_id": job["tenant_id"],
@@ -135,6 +150,7 @@ async def _upsert_lead(job: Dict[str, Any], data: Dict[str, Any], html: str) -> 
         "field_sources": data.get("field_sources", {}),
         "field_confidence": data.get("field_confidence", {}),
         "audit_score": audit_result["score"],
+        "page_text": page_text,
         "updated_at": now,
     }
 

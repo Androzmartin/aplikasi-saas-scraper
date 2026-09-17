@@ -1,0 +1,4 @@
+# Dependensi opsional untuk AI enrichment (copywriting redesign + klasifikasi niche).
+# Pasang hanya jika AI_ENABLED=true:
+#   pip install -r requirements-ai.txt
+anthropic>=1.0.0

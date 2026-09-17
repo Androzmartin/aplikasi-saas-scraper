@@ -176,7 +176,12 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
         for label, value, href in contact_rows
     ) or '<li class="py-3 text-sm text-slate-500">Silakan lengkapi data kontak Anda.</li>'
 
-    services = template.services
+    # AI copy, when present, replaces the template's generic cards.
+    services = concept.get("ai_services") or template.services
+    services = [
+        (item["title"], item["body"]) if isinstance(item, dict) else item
+        for item in services
+    ]
     services_html = "".join(
         f'<article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">'
         f'<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-{accent}-600 text-sm font-semibold text-white">{idx + 1}</div>'
@@ -193,11 +198,16 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
 
     testimonials = [(quote, "Pelanggan", area or "Jakarta") for quote in template.testimonials]
 
+    highlight_items = concept.get("ai_highlight_items") or template.highlight_items
+    highlight_items = [
+        (item["title"], item["body"]) if isinstance(item, dict) else item
+        for item in highlight_items
+    ]
     highlight_html = "".join(
         f'<article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">'
         f'<h3 class="text-base font-semibold text-slate-900">{_esc(title)}</h3>'
         f'<p class="mt-2 text-sm leading-relaxed text-slate-600">{_esc(body)}</p></article>'
-        for title, body in template.highlight_items
+        for title, body in highlight_items
     )
 
     trust_html = "".join(
@@ -206,7 +216,7 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
         ' stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round"'
         ' d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>'
         f'<span class="text-sm text-slate-700">{_esc(point)}</span></li>'
-        for point in template.trust_points
+        for point in (concept.get("ai_trust_points") or template.trust_points)
     )
     testimonials_html = "".join(
         f'<figure class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">'

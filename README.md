@@ -40,6 +40,7 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Proposal klien (HTML/PDF) | ✅ | Dokumen siap kirim, mandiri tanpa CDN |
 | Analitik | ✅ | Funnel lead, sebaran skor & wilayah, tren harian |
 | Billing (Duitku) | ✅ | Paket berlangganan, checkout, callback, rekonsiliasi |
+| AI enrichment | ✅ | Naskah redesign khusus per bisnis + klasifikasi niche (opsional) |
 
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
@@ -256,6 +257,46 @@ browser tidak terpasang, API menjawab 503 dengan pesan yang mengarahkan user
 mengunduh HTML lalu mencetaknya ke PDF dari browser — jadi fitur ini tidak
 pernah menjadi jalan buntu.
 
+## AI Enrichment (opsional)
+
+Secara default generator memakai template deterministik — gratis, cepat, dan
+hasilnya bisa diprediksi. Bila diaktifkan, AI mengerjakan dua hal:
+
+1. **Klasifikasi niche** dari isi website itu sendiri, bukan sekadar mencocokkan
+   nama bisnis dengan daftar kata kunci. Tebakan dengan keyakinan di bawah 0,6
+   ditolak karena tebakan ragu-ragu lebih buruk daripada heuristik yang diganti.
+2. **Menulis seluruh naskah** landing page untuk bisnis itu — hero, kartu
+   layanan, alasan memilih, dan section khusus industri — bukan mengisi template
+   generik.
+
+```bash
+pip install -r requirements-ai.txt
+```
+
+```
+AI_ENABLED=true
+AI_API_KEY=sk-ant-...
+AI_MODEL=claude-opus-5
+```
+
+### Penjaga anti-karangan
+
+Dokumen ini dikirim ke calon klien sungguhan, jadi klaim palsu lebih berbahaya
+daripada naskah template yang datar. Ada tiga lapis:
+
+1. **Instruksi sistem** melarang keras menyebut jumlah pelanggan, tahun berdiri,
+   lama pengalaman, persentase, peringkat, penghargaan, atau sertifikasi.
+2. **Structured output** mengunci bentuk balasan (`additionalProperties: false`),
+   sehingga responsnya selalu bisa diproses.
+3. **Validasi lokal** menolak naskah yang tetap memuat klaim berbentuk angka
+   ("1000+ pelanggan", "sejak 1998", "98% puas", "nomor 1 di Jakarta",
+   "bersertifikat"). Satu klaim mencurigakan membatalkan **seluruh** set naskah,
+   dan sistem kembali memakai template.
+
+Kegagalan apa pun — API key salah, rate limit, SDK belum terpasang, balasan
+tidak valid — selalu jatuh kembali ke template. AI tidak pernah bisa
+menggagalkan scraping, audit, maupun generate redesign.
+
 ## Fitur Opsional
 
 ### Screenshot desktop/mobile
@@ -329,7 +370,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 272 test
+  tests/               # 307 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -343,7 +384,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 272 test
+cd backend && python -m pytest        # 307 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```
@@ -400,7 +441,8 @@ terlebih dahulu dan sengaja tidak termasuk dalam MVP.
 | `SCRAPER_WORKER_CONCURRENCY` | `3` | Jumlah worker paralel |
 | `SCRAPER_RESPECT_ROBOTS` | `true` | Patuhi robots.txt |
 | `DEFAULT_MONTHLY_JOB_QUOTA` | `500` | Kuota job per tenant per bulan |
-| `AI_ENABLED` | `false` | Aktifkan rewrite copy dengan AI |
+| `AI_ENABLED` | `false` | Aktifkan penulisan naskah dengan AI |
+| `AI_MODEL` | `claude-opus-5` | Model Claude yang dipakai |
 | `SCREENSHOT_ENABLED` | `false` | Aktifkan fitur screenshot (butuh Playwright) |
 | `SCREENSHOT_ON_SCRAPE` | `false` | Ambil screenshot otomatis saat scraping selesai |
 | `REQUIRE_REDESIGN_APPROVAL` | `false` | Wajib approval admin sebelum download |
@@ -409,9 +451,16 @@ terlebih dahulu dan sengaja tidak termasuk dalam MVP.
 | `DUITKU_PRODUCTION` | `false` | `false` = sandbox, `true` = produksi |
 | `PUBLIC_API_BASE_URL` | `http://localhost:8000` | URL publik API untuk callback Duitku |
 
-## Langkah Berikutnya
+## Status
 
-Seluruh item P0, P1, dan sebagian besar P2 dari dokumen breakdown sudah
-diimplementasikan. Yang tersisa: **AI enrichment lebih dalam** — kerangkanya
-sudah ada di `app/services/ai.py` dan sengaja dibiarkan opsional sampai produk
-dipakai dengan data asli, supaya jelas bagian mana yang benar-benar perlu AI.
+Seluruh item **P0, P1, dan P2** dari dokumen breakdown sudah diimplementasikan.
+
+Yang perlu dilakukan sebelum produksi:
+
+1. Satu kali uji dengan **MongoDB asli** — perilaku `$text` search dan
+   concurrency belum pernah diuji terhadap mongod sungguhan.
+2. Satu kali transaksi uji di **sandbox Duitku** — logika dan pengamanan
+   callback sudah terverifikasi, tetapi handshake dengan server Duitku belum
+   pernah terjadi.
+3. Isi `PUBLIC_API_BASE_URL` dengan URL publik dan daftarkan URL callback pada
+   dashboard Duitku.

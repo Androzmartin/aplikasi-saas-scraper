@@ -65,9 +65,9 @@ class Settings(BaseSettings):
     bootstrap_admin_name: str = "Internal Admin"
 
     ai_enabled: bool = False
-    ai_provider: str = "anthropic"
     ai_api_key: str = ""
-    ai_model: str = "claude-sonnet-5"
+    ai_model: str = "claude-opus-5"
+    ai_timeout_seconds: float = 60.0
 
     @field_validator("cors_origins", mode="before")
     @classmethod
