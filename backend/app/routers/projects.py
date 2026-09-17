@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_db
 from app.deps import get_current_user, get_owned_project, tenant_filter
@@ -30,6 +30,19 @@ async def _project_stats(project_id) -> tuple[Dict[str, int], int]:
 async def create_project(
     payload: ProjectCreate, user: Dict[str, Any] = Depends(get_current_user)
 ) -> Any:
+    # An internal admin has no tenant, so a project created here would belong to
+    # nobody: invisible to every tenant and impossible to scrape against a quota.
+    # Say so plainly instead of silently creating an orphan.
+    if not user.get("tenant_id"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Akun admin internal tidak terhubung ke tenant manapun, jadi tidak bisa "
+                "membuat project. Masuk dengan akun tenant (mis. akun demo) untuk membuat "
+                "dan menjalankan project."
+            ),
+        )
+
     db = get_db()
     doc = {
         "tenant_id": user.get("tenant_id"),

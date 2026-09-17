@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import { ApiError, api } from '@/api/client'
 import type { Project } from '@/api/types'
 import { Alert, EmptyState, Field, PageHeader, Panel, Spinner } from '@/components/ui'
+import { useAuth } from '@/context/AuthContext'
 import { JABODETABEK_REGIONS, formatDate, regionLabel } from '@/lib/format'
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const { isAdmin } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', target_region: 'jakarta', description: '' })
   const [error, setError] = useState<string | null>(null)
@@ -46,15 +48,33 @@ export default function Projects() {
     <>
       <PageHeader
         title="Projects"
-        description="Satu project mengelompokkan URL target dan lead hasil scraping."
+        description={
+          isAdmin
+            ? 'Semua project dari seluruh tenant, untuk pemantauan.'
+            : 'Satu project mengelompokkan URL target dan lead hasil scraping.'
+        }
         actions={
-          <button className="btn-primary" onClick={() => setShowForm((open) => !open)}>
-            {showForm ? 'Tutup form' : 'Project baru'}
-          </button>
+          // An internal admin has no tenant, so creating a project would fail.
+          // Do not offer a button that cannot work.
+          isAdmin ? undefined : (
+            <button className="btn-primary" onClick={() => setShowForm((open) => !open)}>
+              {showForm ? 'Tutup form' : 'Project baru'}
+            </button>
+          )
         }
       />
 
-      {showForm && (
+      {isAdmin && (
+        <div className="mb-6">
+          <Alert tone="info">
+            Anda masuk sebagai admin internal. Akun ini memantau seluruh tenant dan tidak
+            terhubung ke tenant manapun, jadi tidak bisa membuat project atau menjalankan
+            scraping. Gunakan akun tenant untuk itu.
+          </Alert>
+        </div>
+      )}
+
+      {showForm && !isAdmin && (
         <div className="mb-6">
           <Panel title="Buat project baru">
             <form onSubmit={handleCreate} className="space-y-4">

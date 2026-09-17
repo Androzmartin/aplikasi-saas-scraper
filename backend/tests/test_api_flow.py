@@ -258,6 +258,40 @@ class TestLeadsAuditRedesignExport:
         assert "Warung Kopi Senja" not in empty.text
 
 
+class TestAdminHasNoTenant:
+    """An internal admin has tenant_id=None; endpoints must handle that.
+
+    Creating a project as an admin used to return 500: the response model
+    required tenant_id, so serialising a tenant-less project failed validation
+    after the row had already been written.
+    """
+
+    async def test_creating_a_project_is_refused_clearly(self, admin_client):
+        response = await admin_client.post(
+            "/api/projects", json={"name": "Proyek Admin", "target_region": "jakarta_utara"}
+        )
+        assert response.status_code == 400, response.text
+        assert "tenant" in response.json()["detail"].lower()
+
+    async def test_refusal_leaves_no_orphan_project(self, admin_client, mock_db):
+        await admin_client.post(
+            "/api/projects", json={"name": "Proyek Yatim", "target_region": "jakarta"}
+        )
+        assert await mock_db.projects.count_documents({"name": "Proyek Yatim"}) == 0
+
+    async def test_admin_can_still_list_projects(self, admin_client, auth_client):
+        await auth_client.post(
+            "/api/projects", json={"name": "Proyek Tenant", "target_region": "bogor"}
+        )
+        response = await admin_client.get("/api/projects")
+        assert response.status_code == 200
+        assert any(p["name"] == "Proyek Tenant" for p in response.json())
+
+    async def test_admin_can_still_list_leads_and_jobs(self, admin_client):
+        assert (await admin_client.get("/api/leads")).status_code == 200
+        assert (await admin_client.get("/api/scrape/jobs")).status_code == 200
+
+
 class TestAdmin:
     async def test_tenant_user_cannot_reach_admin(self, auth_client):
         assert (await auth_client.get("/api/admin/stats")).status_code == 403

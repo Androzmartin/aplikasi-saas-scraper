@@ -73,7 +73,10 @@ class ProjectCreate(ApiModel):
 
 class ProjectOut(ApiModel):
     id: str
-    tenant_id: str
+    # Optional because an internal admin has no tenant. Declaring it required
+    # turned that case into a 500 from response validation instead of a clear
+    # error the user could act on.
+    tenant_id: Optional[str] = None
     name: str
     target_region: str
     description: Optional[str] = None
@@ -105,7 +108,7 @@ class JobOut(ApiModel):
     id: str
     project_id: str
     project_name: Optional[str] = None
-    tenant_id: str
+    tenant_id: Optional[str] = None
     source_url: str
     status: JobStatus
     attempts: int = 0
@@ -128,7 +131,7 @@ class JobCreateResponse(ApiModel):
 class LeadOut(ApiModel):
     id: str
     project_id: str
-    tenant_id: str
+    tenant_id: Optional[str] = None
     business_name: Optional[str] = None
     website_url: str
     whatsapp_number: Optional[str] = None
