@@ -77,7 +77,24 @@ Buka **http://localhost:8080**
 - Semuanya satu origin (`/api` di-proxy ke backend), jadi tidak perlu setting CORS
 - Login admin: `admin@example.com` + password yang Anda set di atas
 
-Untuk membuat akun tenant biasa, klik **Daftar sekarang** di halaman login.
+### Isi data contoh (disarankan untuk percobaan pertama)
+
+Instalasi baru menampilkan dashboard kosong. Untuk langsung melihat semua
+halaman terisi tanpa menunggu scraping:
+
+```bash
+docker compose exec backend python -m app.seed --demo
+```
+
+Perintah itu mencetak email dan password akun demo, lalu membuat 6 lead lintas
+Jakarta/Bodetabek dengan skor audit yang bervariasi, job dalam berbagai status
+(termasuk satu yang gagal supaya tombol **Ulangi** bisa dicoba), satu hasil
+redesign yang langsung bisa di-preview dan diunduh, dan satu riwayat pembayaran.
+
+Semua URL contoh diawali `contoh-` sehingga scraper tidak akan pernah menyasar
+website orang lain.
+
+Tanpa `--demo`, perintah itu hanya membuat akun dan satu project kosong.
 
 Menghentikan: `docker compose down` (tambah `-v` untuk menghapus data juga).
 
@@ -106,8 +123,11 @@ API tersedia di `http://localhost:8000`, dokumentasi interaktif di
 Membuat akun demo:
 
 ```bash
-python -m app.seed          # mencetak email + password yang dihasilkan
+python -m app.seed          # akun + project kosong
+python -m app.seed --demo   # + lead, audit, job, redesign, pembayaran contoh
 ```
+
+Keduanya mencetak email dan password yang dihasilkan.
 
 Admin internal dibuat otomatis saat startup bila `BOOTSTRAP_ADMIN_PASSWORD`
 diisi pada `.env`.
@@ -416,7 +436,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 307 test
+  tests/               # 322 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -430,7 +450,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 307 test
+cd backend && python -m pytest        # 322 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```
@@ -527,6 +547,33 @@ https://xxxx.trycloudflare.com/api/billing/callback
 
 Bila callback tidak sampai (tunnel mati, dsb.), tombol **Cek status** pada
 halaman Langganan akan menanyakan status langsung ke Duitku.
+
+## Daftar Periksa Percobaan Pertama
+
+Urutan yang paling cepat memberi gambaran:
+
+1. **Jalankan dengan data contoh** (perintah `--demo` di atas), lalu telusuri
+   Dashboard → Leads → detail lead → Analitik → Langganan. Semua halaman sudah
+   terisi.
+2. **Buka satu detail lead.** Periksa panel audit (skor, rincian per parameter,
+   daftar temuan), klik **Generate redesign**, lihat preview, lalu unduh
+   `index.html` dan buka di browser.
+3. **Coba draft outreach.** Ganti kanal WhatsApp/email dan gaya bahasanya, lalu
+   perhatikan pesannya mengutip temuan audit lead tersebut.
+4. **Unduh proposal** (HTML selalu tersedia; PDF butuh Playwright).
+5. **Baru uji dengan URL asli.** Buat project baru, masukkan 5–10 website UMKM
+   sungguhan, jalankan scraping. Ini bagian terpenting: yang diuji adalah
+   apakah ekstraksi kontak berhasil pada HTML UMKM Indonesia yang sebenarnya —
+   risiko nomor satu pada dokumen breakdown, dan satu-satunya hal yang tidak
+   bisa dijawab oleh test manapun.
+
+Yang perlu diperhatikan pada langkah 5, dan berguna dilaporkan:
+
+- Field mana yang sering kosong (WA? alamat? contact person?)
+- Situs yang menolak crawler (job berstatus gagal dengan HTTP 403)
+- Nomor kontak yang ditaruh di gambar, bukan teks — ini memang tidak akan
+  terambil, dan sudah tercatat sebagai batasan
+- Skor audit yang terasa tidak wajar untuk website tersebut
 
 ## Status
 
