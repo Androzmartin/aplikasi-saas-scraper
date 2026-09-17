@@ -1,9 +1,9 @@
 """Application settings loaded from environment / .env file."""
 from functools import lru_cache
-from typing import List
+from typing import Annotated, List
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "umkm_scraper"
 
-    cors_origins: List[str] = Field(
+    # NoDecode is required: without it pydantic-settings JSON-decodes a list
+    # field before validators run, so the plain comma-separated form documented
+    # in .env.example ("a,b") fails with a JSONDecodeError at startup.
+    cors_origins: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
 
