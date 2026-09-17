@@ -56,20 +56,66 @@ Excel/JSON, white-label, dan discovery engine dari pihak ketiga.
 - **AI (opsional)** — Anthropic atau OpenAI untuk rewrite copy; nonaktif secara
   default dan otomatis jatuh kembali ke template deterministik
 
-## Mulai Cepat (Cara Termudah Mencoba)
+## Mulai Cepat
 
-Butuh Docker saja. Satu perintah, seluruh aplikasi jalan:
+Yang dibutuhkan hanya **Docker Desktop**. Unduh di
+[docker.com](https://www.docker.com/products/docker-desktop/), pasang, dan
+pastikan statusnya sudah *Running*.
+
+### Langkah 1 — ambil kodenya
+
+Buka **Terminal** (Mac: tekan `Cmd + Spasi`, tulis `Terminal`) atau
+**PowerShell** (Windows: tekan tombol Windows, tulis `PowerShell`), lalu:
 
 ```bash
 git clone https://github.com/Androzmartin/aplikasi-saas-scraper.git
 cd aplikasi-saas-scraper
+```
 
-# Wajib: kunci JWT dan password admin
+### Langkah 2 — jalankan
+
+**Mac / Linux:**
+
+```bash
+./start.sh
+```
+
+**Windows:** klik dua kali berkas `start.bat`, atau di PowerShell:
+
+```powershell
+.\start.bat
+```
+
+Skrip itu memeriksa Docker, membuat kunci rahasia dan password admin sendiri
+(disimpan di `.env`, tidak akan berubah saat dijalankan ulang), membangun
+aplikasi, mengisi data contoh, lalu menampilkan alamat dan kredensial login.
+
+Pertama kali bisa 3–5 menit karena harus mengunduh image Docker.
+
+Tanpa data contoh: `./start.sh --kosong`
+
+### Menjalankan manual (kalau tidak mau pakai skrip)
+
+<details>
+<summary>Perintah setara, per sistem operasi</summary>
+
+**Mac / Linux:**
+
+```bash
 export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
 export BOOTSTRAP_ADMIN_PASSWORD='ganti-password-ini'
-
 docker compose up --build
 ```
+
+**Windows PowerShell** (`export` tidak ada di PowerShell):
+
+```powershell
+$env:JWT_SECRET = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})
+$env:BOOTSTRAP_ADMIN_PASSWORD = 'ganti-password-ini'
+docker compose up --build
+```
+
+</details>
 
 Buka **http://localhost:8080**
 
@@ -77,10 +123,10 @@ Buka **http://localhost:8080**
 - Semuanya satu origin (`/api` di-proxy ke backend), jadi tidak perlu setting CORS
 - Login admin: `admin@example.com` + password yang Anda set di atas
 
-### Isi data contoh (disarankan untuk percobaan pertama)
+### Isi data contoh
 
-Instalasi baru menampilkan dashboard kosong. Untuk langsung melihat semua
-halaman terisi tanpa menunggu scraping:
+`start.sh` / `start.bat` sudah melakukan ini otomatis. Kalau menjalankan
+manual, instalasi baru akan menampilkan dashboard kosong — isi dengan:
 
 ```bash
 docker compose exec backend python -m app.seed --demo
