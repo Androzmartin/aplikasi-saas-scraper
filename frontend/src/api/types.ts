@@ -162,6 +162,44 @@ export interface NicheTemplate {
   highlight: string
 }
 
+export interface Plan {
+  code: string
+  name: string
+  price_idr: number
+  monthly_job_quota: number
+  duration_days: number
+  features: string[]
+  is_free: boolean
+}
+
+export interface Subscription {
+  plan_code: string
+  plan_name: string
+  monthly_job_quota: number
+  jobs_used_this_month: number
+  jobs_remaining: number
+  expires_at: string | null
+  is_expired: boolean
+  payment_configured: boolean
+}
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired'
+
+export interface Payment {
+  id: string
+  merchant_order_id: string
+  plan_code: string
+  plan_name: string
+  amount_idr: number
+  status: PaymentStatus
+  payment_url: string | null
+  va_number: string | null
+  reference: string | null
+  created_at: string
+  paid_at: string | null
+  expires_at: string | null
+}
+
 export interface MetricBucket {
   key: string
   label: string

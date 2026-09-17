@@ -6,11 +6,12 @@ Intended for local development and demos only.
 import asyncio
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.db import connect, ensure_indexes
 from app.models.common import Role, TenantStatus
 from app.security import hash_password
+from app.services.plans import get_plan
 
 
 async def main() -> None:
@@ -30,7 +31,10 @@ async def main() -> None:
             "company_name": os.getenv("SEED_COMPANY", "Agency Kreatif Nusantara"),
             "plan_name": "starter",
             "status": TenantStatus.ACTIVE.value,
-            "monthly_job_quota": 500,
+            "monthly_job_quota": get_plan("starter").monthly_job_quota,
+            # Demo tenant gets a paid plan with a real expiry so the billing
+            # screens have something meaningful to show.
+            "plan_expires_at": datetime.now(timezone.utc) + timedelta(days=30),
             "created_at": now,
         }
     )

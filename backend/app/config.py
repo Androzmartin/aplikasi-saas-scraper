@@ -49,6 +49,17 @@ class Settings(BaseSettings):
     # tenant can download its index.html.
     require_redesign_approval: bool = False
 
+    # --- Duitku payment gateway ---
+    duitku_merchant_code: str = ""
+    duitku_api_key: str = ""
+    duitku_production: bool = False
+    duitku_expiry_minutes: int = 60
+    duitku_timeout_seconds: float = 30.0
+    # Public base URL of this API, used to build the callback Duitku posts to.
+    public_api_base_url: str = "http://localhost:8000"
+    # Where the user lands after paying.
+    public_app_base_url: str = "http://localhost:5173"
+
     bootstrap_admin_email: str = "admin@example.com"
     bootstrap_admin_password: str = ""
     bootstrap_admin_name: str = "Internal Admin"

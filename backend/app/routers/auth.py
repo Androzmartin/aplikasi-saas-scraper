@@ -20,6 +20,7 @@ from app.models.schemas import (
     UserOut,
 )
 from app.security import create_access_token, hash_password, verify_password
+from app.services.plans import FREE_PLAN_CODE, get_plan
 from app.serializers import tenant_out, user_out
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -44,9 +45,12 @@ async def register(payload: RegisterRequest) -> Any:
     tenant = await db.tenants.insert_one(
         {
             "company_name": payload.company_name.strip(),
-            "plan_name": "starter",
+            # Self-service signups start on the free plan; paid plans are
+            # activated only by a settled Duitku payment.
+            "plan_name": FREE_PLAN_CODE,
             "status": TenantStatus.ACTIVE.value,
-            "monthly_job_quota": settings.default_monthly_job_quota,
+            "monthly_job_quota": get_plan(FREE_PLAN_CODE).monthly_job_quota,
+            "plan_expires_at": None,
             "created_at": now,
         }
     )

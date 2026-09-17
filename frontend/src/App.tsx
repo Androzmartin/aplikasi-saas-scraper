@@ -4,6 +4,7 @@ import { Spinner } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import Admin from '@/pages/Admin'
 import Analytics from '@/pages/Analytics'
+import Billing from '@/pages/Billing'
 import Dashboard from '@/pages/Dashboard'
 import Jobs from '@/pages/Jobs'
 import LeadDetail from '@/pages/LeadDetail'
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="leads" element={<Leads />} />
         <Route path="leads/:leadId" element={<LeadDetail />} />
         <Route path="jobs" element={<Jobs />} />
+        <Route path="billing" element={<Billing />} />
         <Route path="profile" element={<Profile />} />
         <Route
           path="admin"

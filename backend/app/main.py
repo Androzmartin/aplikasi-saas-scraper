@@ -14,6 +14,7 @@ from app.models.common import Role, TenantStatus
 from app.routers import (
     admin,
     analytics,
+    billing,
     audits,
     auth,
     exports,
@@ -95,6 +96,7 @@ app.add_middleware(
 for router in (
     auth.router,
     analytics.router,
+    billing.router,
     projects.router,
     scrape.router,
     leads.router,

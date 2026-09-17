@@ -1,6 +1,7 @@
 import type {
   ActivityLog, AdminRedesign, AdminStats, AnalyticsOverview, ApprovalStatus, Audit, Job, JobCreateResponse,
-  Lead, MeResponse, NicheTemplate, OutreachDraft, PageResult, Project, Redesign, Screenshots, Tenant,
+  Lead, MeResponse, NicheTemplate, OutreachDraft, PageResult, Payment, Plan, Project, Redesign,
+  Screenshots, Subscription, Tenant,
   TokenResponse, User,
 } from './types'
 
@@ -185,6 +186,18 @@ export const api = {
   getRedesign: (leadId: string) => request<Redesign>(`/redesign/${leadId}`),
   downloadRedesign: (leadId: string) =>
     download(`/redesign/${leadId}/download`, 'index.html'),
+
+  // billing
+  listPlans: () => request<Plan[]>('/billing/plans'),
+  getSubscription: () => request<Subscription>('/billing/subscription'),
+  listPayments: () => request<Payment[]>('/billing/payments'),
+  checkout: (plan_code: string) =>
+    request<{ payment: Payment; payment_url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan_code }),
+    }),
+  syncPayment: (id: string) =>
+    request<Payment>(`/billing/payments/${id}/sync`, { method: 'POST' }),
 
   // analytics
   analyticsOverview: (params: { project_id?: string; days?: number } = {}) =>

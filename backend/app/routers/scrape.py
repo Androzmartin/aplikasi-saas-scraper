@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.config import settings
 from app.db import get_db
 from app.deps import (
     get_current_user,
@@ -19,6 +18,7 @@ from app.models.common import JobStatus, enum_value
 from app.models.schemas import JobCreate, JobCreateResponse, JobOut
 from app.serializers import job_out
 from app.services.jobs import notify_new_jobs
+from app.services.plans import effective_plan
 from app.services.urls import parse_url_list
 
 router = APIRouter(prefix="/scrape", tags=["scraping"])
@@ -30,7 +30,11 @@ async def _check_quota(user: Dict[str, Any], requested: int) -> None:
         return
     db = get_db()
     tenant = await db.tenants.find_one({"_id": user["tenant_id"]})
-    quota = (tenant or {}).get("monthly_job_quota") or settings.default_monthly_job_quota
+    # Quota comes from the plan the tenant is *entitled to now*, not the stored
+    # one: an expired paid plan must fall back to free rather than keep spending
+    # its old allowance.
+    plan = effective_plan(tenant)
+    quota = plan.monthly_job_quota
     if quota <= 0:
         return
 
@@ -44,8 +48,9 @@ async def _check_quota(user: Dict[str, Any], requested: int) -> None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                f"Kuota scraping bulan ini habis ({used}/{quota}). "
-                f"Permintaan {requested} URL melebihi sisa kuota."
+                f"Kuota scraping paket {plan.name} bulan ini habis ({used}/{quota}). "
+                f"Permintaan {requested} URL melebihi sisa kuota. "
+                "Tingkatkan paket di halaman Langganan untuk menambah kuota."
             ),
         )
 

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api } from '@/api/client'
-import type { ActivityLog, AdminRedesign, AdminStats, Job, Project, Tenant, User } from '@/api/types'
+import type { ActivityLog, AdminRedesign, AdminStats, Job, Payment, Project, Tenant, User } from '@/api/types'
 import { Alert, EmptyState, JobStatusBadge, PageHeader, Panel, Spinner, StatCard } from '@/components/ui'
 import { formatDate, formatRelative, regionLabel } from '@/lib/format'
 
-type Tab = 'overview' | 'tenants' | 'users' | 'projects' | 'jobs' | 'redesigns' | 'activity'
+type Tab = 'overview' | 'tenants' | 'users' | 'projects' | 'jobs' | 'redesigns' | 'payments' | 'activity'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Ringkasan' },
@@ -13,6 +13,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'projects', label: 'Projects' },
   { id: 'jobs', label: 'Jobs' },
   { id: 'redesigns', label: 'Review redesign' },
+  { id: 'payments', label: 'Pembayaran' },
   { id: 'activity', label: 'Audit log' },
 ]
 
@@ -26,6 +27,7 @@ export default function Admin() {
   const [errors, setErrors] = useState<Job[]>([])
   const [activity, setActivity] = useState<ActivityLog[]>([])
   const [redesigns, setRedesigns] = useState<AdminRedesign[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,6 +43,7 @@ export default function Admin() {
       if (tab === 'projects') setProjects(await api.adminProjects())
       if (tab === 'jobs') setJobs(await api.adminJobs())
       if (tab === 'redesigns') setRedesigns(await api.adminRedesigns())
+      if (tab === 'payments') setPayments(await api.listPayments())
       if (tab === 'activity') setActivity(await api.adminActivity())
       setError(null)
     } catch (caught) {
@@ -342,6 +345,56 @@ export default function Admin() {
                           )}
                         </div>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )
+            )}
+
+            {tab === 'payments' && (
+              payments.length === 0 ? (
+                <EmptyState
+                  title="Belum ada pembayaran"
+                  description="Transaksi Duitku dari semua tenant akan muncul di sini."
+                />
+              ) : (
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="table-head">
+                  <tr>
+                    <th className="px-5 py-3">Order ID</th>
+                    <th className="px-5 py-3">Paket</th>
+                    <th className="px-5 py-3">Nominal</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Referensi</th>
+                    <th className="px-5 py-3">Dibuat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="hover:bg-slate-50">
+                      <td className="table-cell font-mono text-xs">{payment.merchant_order_id}</td>
+                      <td className="table-cell">{payment.plan_name}</td>
+                      <td className="table-cell tabular-nums">
+                        {new Intl.NumberFormat('id-ID', {
+                          style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
+                        }).format(payment.amount_idr)}
+                      </td>
+                      <td className="table-cell">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          payment.status === 'paid'
+                            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                            : payment.status === 'pending'
+                              ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                              : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className="table-cell font-mono text-xs text-slate-500">
+                        {payment.reference ?? '—'}
+                      </td>
+                      <td className="table-cell text-slate-500">{formatDate(payment.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -39,6 +39,7 @@ hasilkan konsep redesign beserta file `index.html` siap presentasi.
 | Draft outreach WA/email | ✅ | Pesan disusun dari hasil audit + deep link wa.me/mailto |
 | Proposal klien (HTML/PDF) | ✅ | Dokumen siap kirim, mandiri tanpa CDN |
 | Analitik | ✅ | Funnel lead, sebaran skor & wilayah, tren harian |
+| Billing (Duitku) | ✅ | Paket berlangganan, checkout, callback, rekonsiliasi |
 
 Sesuai dokumen breakdown, hal berikut **sengaja ditunda**: billing, outreach
 WhatsApp/email otomatis, editor visual drag-and-drop, proposal PDF, export
@@ -128,6 +129,65 @@ testimoni, dan satu section khusus sesuai cara industri itu berjualan. Ukuran
 GET  /api/redesign/templates                          # daftar niche
 POST /api/redesign/{lead_id}/generate?template=jasa   # timpa deteksi otomatis
 ```
+
+## Langganan & Pembayaran (Duitku)
+
+Empat paket, kuota scraping per bulan mengikuti paket:
+
+| Paket | Harga | Kuota | Masa aktif |
+|---|---|---|---|
+| Gratis | Rp 0 | 50 job/bulan | selamanya |
+| Starter | Rp 149.000 | 500 job/bulan | 30 hari |
+| Pro | Rp 399.000 | 2.000 job/bulan | 30 hari |
+| Business | Rp 1.290.000 | 10.000 job/bulan | 30 hari |
+
+Paket didefinisikan di `app/services/plans.py`, bukan di database — harga perlu
+ditinjau seperti kode, dan baris harga yang bisa diubah saat runtime mudah
+membuat produk terjual terlalu murah tanpa sengaja.
+
+### Alur pembayaran
+
+1. User memilih paket → `POST /billing/checkout`
+2. Server mencatat invoice **berstatus pending lebih dulu**, lalu memanggil
+   Duitku (`/webapi/api/merchant/v2/inquiry`)
+3. User diarahkan ke halaman pembayaran Duitku
+4. Duitku memanggil `POST /billing/callback` → paket diaktifkan
+5. User kembali ke `/billing`; bila callback belum sampai, aplikasi otomatis
+   menanyakan status ke Duitku
+
+### Pengamanan callback
+
+Callback adalah endpoint publik tanpa autentikasi, jadi diperlakukan sebagai
+input yang tidak dipercaya:
+
+- **Signature diverifikasi** — `MD5(merchantCode + amount + merchantOrderId + apiKey)`,
+  dibandingkan secara constant-time. Callback dengan merchant code lain ditolak.
+- **Nominal dicocokkan dengan invoice.** Contoh resmi Duitku **tidak** melakukan
+  ini; tanpa pemeriksaan ini callback bertanda tangan sah dengan nominal
+  Rp 1.000 bisa mengaktifkan paket Rp 1.290.000.
+- **Idempoten.** Transisi `pending → paid` dijaga update atomik, sehingga
+  callback yang dikirim ulang tidak memperpanjang masa aktif dua kali.
+- **Rekonsiliasi.** Webhook bisa hilang, jadi status tidak pernah bergantung
+  pada callback saja — tersedia `POST /billing/payments/{id}/sync` yang bertanya
+  langsung ke Duitku.
+- Payload callback mentah disimpan untuk audit.
+
+### Konfigurasi
+
+```
+DUITKU_MERCHANT_CODE=...
+DUITKU_API_KEY=...
+DUITKU_PRODUCTION=false          # false = sandbox
+PUBLIC_API_BASE_URL=https://api.domain-anda.com   # wajib bisa diakses Duitku
+PUBLIC_APP_BASE_URL=https://app.domain-anda.com
+```
+
+`PUBLIC_API_BASE_URL` dipakai menyusun `callbackUrl`. Di produksi ini **harus**
+URL publik — `localhost` tidak akan bisa dipanggil Duitku. Daftarkan juga URL
+callback tersebut pada dashboard Duitku.
+
+Kuota mengikuti paket yang **sedang berlaku**: paket berbayar yang masa aktifnya
+habis otomatis turun ke kuota Gratis, bukan tetap memakai kuota lama.
 
 ## Analitik
 
@@ -269,7 +329,7 @@ backend/
       jobs.py          # antrean worker
       storage.py       # object storage
       ai.py            # enrichment opsional
-  tests/               # 235 test
+  tests/               # 272 test
 frontend/
   src/
     api/               # client + tipe yang mencerminkan skema backend
@@ -283,7 +343,7 @@ frontend/
 ## Pengujian
 
 ```bash
-cd backend && python -m pytest        # 235 test
+cd backend && python -m pytest        # 272 test
 cd frontend && npx tsc --noEmit       # typecheck
 cd frontend && npm run build          # build produksi
 ```
@@ -344,9 +404,14 @@ terlebih dahulu dan sengaja tidak termasuk dalam MVP.
 | `SCREENSHOT_ENABLED` | `false` | Aktifkan fitur screenshot (butuh Playwright) |
 | `SCREENSHOT_ON_SCRAPE` | `false` | Ambil screenshot otomatis saat scraping selesai |
 | `REQUIRE_REDESIGN_APPROVAL` | `false` | Wajib approval admin sebelum download |
+| `DUITKU_MERCHANT_CODE` | — | Merchant code dari dashboard Duitku |
+| `DUITKU_API_KEY` | — | API key Duitku |
+| `DUITKU_PRODUCTION` | `false` | `false` = sandbox, `true` = produksi |
+| `PUBLIC_API_BASE_URL` | `http://localhost:8000` | URL publik API untuk callback Duitku |
 
-## Langkah Berikutnya (P2)
+## Langkah Berikutnya
 
-Sesuai dokumen breakdown, tahap berikutnya setelah MVP tervalidasi: billing
-langganan, integrasi outreach WhatsApp/email, proposal PDF, analytics lanjutan,
-AI enrichment lebih dalam, dan template redesign per niche.
+Seluruh item P0, P1, dan sebagian besar P2 dari dokumen breakdown sudah
+diimplementasikan. Yang tersisa: **AI enrichment lebih dalam** — kerangkanya
+sudah ada di `app/services/ai.py` dan sengaja dibiarkan opsional sampai produk
+dipakai dengan data asli, supaya jelas bagian mana yang benar-benar perlu AI.

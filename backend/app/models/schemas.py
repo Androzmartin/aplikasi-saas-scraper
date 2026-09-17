@@ -233,6 +233,54 @@ class AdminRedesignOut(ApiModel):
     reviewed_at: Optional[datetime] = None
 
 
+# ------------------------------------------------------------------------ billing
+
+
+class PlanOut(ApiModel):
+    code: str
+    name: str
+    price_idr: int
+    monthly_job_quota: int
+    duration_days: int
+    features: List[str] = Field(default_factory=list)
+    is_free: bool = False
+
+
+class SubscriptionOut(ApiModel):
+    plan_code: str
+    plan_name: str
+    monthly_job_quota: int
+    jobs_used_this_month: int
+    jobs_remaining: int
+    expires_at: Optional[datetime] = None
+    is_expired: bool = False
+    payment_configured: bool = False
+
+
+class PaymentOut(ApiModel):
+    id: str
+    merchant_order_id: str
+    plan_code: str
+    plan_name: str
+    amount_idr: int
+    status: str
+    payment_url: Optional[str] = None
+    va_number: Optional[str] = None
+    reference: Optional[str] = None
+    created_at: datetime
+    paid_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+
+
+class CheckoutRequest(ApiModel):
+    plan_code: str = Field(min_length=2, max_length=40)
+
+
+class CheckoutResponse(ApiModel):
+    payment: PaymentOut
+    payment_url: str
+
+
 # ---------------------------------------------------------------------- analytics
 
 
