@@ -150,6 +150,8 @@ async def _upsert_lead(job: Dict[str, Any], data: Dict[str, Any], html: str) -> 
         "field_sources": data.get("field_sources", {}),
         "field_confidence": data.get("field_confidence", {}),
         "social_links": data.get("social_links", {}),
+        # The business's own photos, used to build the redesign concept.
+        "images": data.get("images", {"logo": None, "gallery": []}),
         "audit_score": audit_result["score"],
         "page_text": page_text,
         "updated_at": now,

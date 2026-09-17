@@ -89,6 +89,7 @@ class ExtractedContact:
     region: str = "unknown"
     source_page: Optional[str] = None
     social_links: Dict[str, str] = field(default_factory=dict)
+    images: Dict[str, Any] = field(default_factory=lambda: {"logo": None, "gallery": []})
     field_sources: Dict[str, str] = field(default_factory=dict)
     field_confidence: Dict[str, float] = field(default_factory=dict)
 
@@ -103,6 +104,7 @@ class ExtractedContact:
             "region": self.region,
             "source_page": self.source_page,
             "social_links": self.social_links,
+            "images": self.images,
             "field_sources": self.field_sources,
             "field_confidence": self.field_confidence,
         }
@@ -449,6 +451,148 @@ def social_handle(platform: str, url: str) -> Optional[str]:
     return match.group(1).strip("/") if match else None
 
 
+# --------------------------------------------------------------------- images
+
+# Filenames that mark decoration or tracking rather than content.
+_IMAGE_JUNK = (
+    "sprite", "icon", "favicon", "pixel", "spacer", "blank", "placeholder",
+    "loader", "loading", "arrow", "bullet", "divider", "pattern", "badge",
+    "whatsapp", "facebook", "instagram", "tiktok", "youtube", "twitter",
+    "payment", "visa", "mastercard", "gopay", "ovo", "dana", "shopee",
+    "1x1", "transparent", "avatar", "captcha",
+)
+
+# Filenames that suggest a large, presentable photo.
+_IMAGE_GOOD = (
+    "banner", "slide", "hero", "cover", "header", "featured", "gallery",
+    "menu", "product", "produk", "foto", "photo", "interior", "room",
+    "outlet", "store", "toko", "showcase", "portfolio",
+)
+
+_IMAGE_EXT_OK = (".jpg", ".jpeg", ".png", ".webp", ".avif")
+
+
+def _image_candidates(tag: Any) -> str:
+    """The best URL on an <img>, allowing for lazy-loading attributes."""
+    for attr in ("src", "data-src", "data-lazy-src", "data-original"):
+        value = (tag.get(attr) or "").strip()
+        if value and not value.startswith("data:"):
+            return value
+
+    # srcset: take the last (usually largest) entry.
+    srcset = (tag.get("srcset") or tag.get("data-srcset") or "").strip()
+    if srcset:
+        last = srcset.split(",")[-1].strip().split(" ")[0]
+        if last and not last.startswith("data:"):
+            return last
+    return ""
+
+
+# Many CMSs encode the rendered size in the filename - "cover_w480_h288",
+# "photo-1024x768". Reading it avoids picking a thumbnail for a full-bleed hero,
+# which looks blurry however good the photo is.
+_DIM_IN_NAME = [
+    re.compile(r"[_-]w(\d{2,4})[_-]h\d{2,4}", re.I),
+    re.compile(r"[_-](\d{3,4})x\d{3,4}\.", re.I),
+]
+
+
+def width_from_url(url: str) -> int:
+    for pattern in _DIM_IN_NAME:
+        match = pattern.search(url)
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                continue
+    return 0
+
+
+def _score_image(url: str, tag: Any) -> int:
+    """Rank how likely an image is to be a usable photo of the business."""
+    lowered = url.lower()
+    score = 0
+
+    try:
+        width = int(str(tag.get("width") or "").strip() or 0)
+    except ValueError:
+        width = 0
+    # The attribute is often missing; the filename usually is not.
+    width = max(width, width_from_url(url))
+    if width >= 1200:
+        score += 6
+    elif width >= 800:
+        score += 4
+    elif width >= 400:
+        score += 2
+    elif 0 < width < 200:
+        score -= 6  # too small to be a photo
+
+    score += sum(3 for hint in _IMAGE_GOOD if hint in lowered)
+
+    # A written alt usually means real content, not furniture.
+    alt = (tag.get("alt") or "").strip()
+    if len(alt) > 8:
+        score += 2
+
+    # Thumbnail markers in the path.
+    if "thumb" in lowered or "-150x" in lowered or "-300x" in lowered:
+        score -= 2
+    return score
+
+
+def extract_images(soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
+    """Collect the business's own logo and photos from its page.
+
+    These are used to build the redesign concept, which is a mockup made *for*
+    that business out of its own material - not a generic stock page.
+    """
+    from urllib.parse import urljoin
+
+    logo: Optional[str] = None
+    scored: List[Tuple[int, str]] = []
+    seen: set = set()
+
+    # og:image is the site's own pick for how it wants to be represented.
+    og_image = soup.find("meta", attrs={"property": "og:image"})
+    if og_image and (og_image.get("content") or "").strip():
+        candidate = urljoin(base_url, og_image["content"].strip())
+        if not candidate.startswith("data:"):
+            scored.append((12, candidate))
+            seen.add(candidate)
+
+    for tag in soup.find_all("img"):
+        raw = _image_candidates(tag)
+        if not raw:
+            continue
+        url = urljoin(base_url, raw)
+        lowered = url.lower()
+
+        if url in seen or lowered.startswith("data:"):
+            continue
+        if not any(lowered.split("?")[0].endswith(ext) for ext in _IMAGE_EXT_OK):
+            continue
+
+        haystack = f"{lowered} {(tag.get('alt') or '').lower()} {(tag.get('class') or '')}"
+        if any(junk in haystack for junk in _IMAGE_JUNK):
+            # A logo is junk for the gallery but wanted on its own.
+            if "logo" in haystack and logo is None:
+                logo = url
+            continue
+        if "logo" in haystack:
+            if logo is None:
+                logo = url
+            continue
+
+        seen.add(url)
+        scored.append((_score_image(url, tag), url))
+
+    scored.sort(key=lambda item: -item[0])
+    gallery = [url for score, url in scored if score > 0][:8]
+
+    return {"logo": logo, "gallery": gallery}
+
+
 def page_text(soup: BeautifulSoup) -> str:
     """Visible text only — scripts and styles are stripped."""
     clone = BeautifulSoup(str(soup), "lxml")
@@ -491,6 +635,7 @@ def extract_from_page(html: str, url: str) -> Dict[str, Any]:
         "address_from_structured": bool(structured.get("address")),
         "contact_person": extract_contact_person(text),
         "social_links": extract_social_links(soup),
+        "images": extract_images(soup, url),
         "all_emails": emails,
         "all_phones": phones,
         "source_url": url,
@@ -555,6 +700,15 @@ def merge_page_results(results: List[Dict[str, Any]]) -> ExtractedContact:
         # Instagram in the footer and LinkedIn only on the About page.
         for platform, link in (result.get("social_links") or {}).items():
             contact.social_links.setdefault(platform, link)
+
+        # Photos accumulate across pages; the homepage usually scores highest,
+        # but a gallery or menu page often has the better shots.
+        page_images = result.get("images") or {}
+        if page_images.get("logo") and not contact.images.get("logo"):
+            contact.images["logo"] = page_images["logo"]
+        for src in page_images.get("gallery") or []:
+            if src not in contact.images["gallery"] and len(contact.images["gallery"]) < 10:
+                contact.images["gallery"].append(src)
 
     contact.region = detect_region(contact.address, contact.business_name)
     return contact

@@ -30,6 +30,21 @@ class NicheTemplate:
     testimonials: List[str]
     sections: List[str] = field(default_factory=list)
 
+    # --- layout, so a clinic does not come out shaped like a restaurant ---
+    # "overlay"   full-bleed photo behind the headline; for places you sell by
+    #             atmosphere (food, salon, hotel, workshop)
+    # "split"     calm two-column with a framed photo; for trust-led services
+    #             (clinic, school, contractor)
+    # "editorial" asymmetric overlapping photos; for visual catalogues
+    #             (fashion, property)
+    hero_style: str = "split"
+    gallery_title: str = "Galeri"
+    gallery_subtitle: str = "Beberapa dokumentasi dari kami."
+    # Tailwind aspect utility for gallery tiles - portrait suits fashion,
+    # landscape suits property, square suits beauty work.
+    gallery_aspect: str = "aspect-[4/3]"
+    show_gallery: bool = True
+
 
 _BASE_SECTIONS = [
     "Hero dengan proposisi nilai dan CTA WhatsApp",
@@ -78,6 +93,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Pesan lewat WhatsApp gampang, responsnya cepat, porsinya pas.",
         ],
         sections=_sections("Menu / produk unggulan"),
+        hero_style="overlay",
+        gallery_title="Galeri & Suasana",
+        gallery_subtitle="Sajian dan suasana tempat kami.",
+        gallery_aspect="aspect-[4/3]",
     ),
     "fashion": NicheTemplate(
         key="fashion",
@@ -109,6 +128,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Admin sabar bantu pilih ukuran. Barang sampai cepat dan aman.",
         ],
         sections=_sections("Katalog / kategori koleksi"),
+        hero_style="editorial",
+        gallery_title="Koleksi",
+        gallery_subtitle="Pilihan yang sedang tersedia.",
+        gallery_aspect="aspect-[3/4]",
     ),
     "jasa": NicheTemplate(
         key="jasa",
@@ -140,6 +163,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Estimasi biaya transparan, tidak ada tambahan mendadak di akhir.",
         ],
         sections=_sections("Paket layanan & estimasi"),
+        hero_style="split",
+        gallery_title="Hasil Pengerjaan",
+        gallery_subtitle="Dokumentasi pekerjaan yang telah selesai.",
+        gallery_aspect="aspect-[4/3]",
     ),
     "kesehatan": NicheTemplate(
         key="kesehatan",
@@ -171,6 +198,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Tempatnya bersih, antrean teratur, dan jadwal janji temu ditepati.",
         ],
         sections=_sections("Daftar layanan & prosedur"),
+        hero_style="split",
+        gallery_title="Fasilitas",
+        gallery_subtitle="Ruang praktik dan peralatan kami.",
+        gallery_aspect="aspect-[16/9]",
     ),
     "otomotif": NicheTemplate(
         key="otomotif",
@@ -202,6 +233,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Booking dulu lewat WA jadi tidak perlu menunggu lama di bengkel.",
         ],
         sections=_sections("Jenis pengerjaan & estimasi"),
+        hero_style="overlay",
+        gallery_title="Hasil Pengerjaan",
+        gallery_subtitle="Beberapa pekerjaan yang sudah kami tangani.",
+        gallery_aspect="aspect-[4/3]",
     ),
     "properti": NicheTemplate(
         key="properti",
@@ -233,6 +268,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Dibantu sampai proses administrasi selesai. Sangat membantu.",
         ],
         sections=_sections("Tipe unit & ketersediaan"),
+        hero_style="editorial",
+        gallery_title="Galeri Unit",
+        gallery_subtitle="Tampilan unit yang tersedia.",
+        gallery_aspect="aspect-[16/9]",
     ),
     "pendidikan": NicheTemplate(
         key="pendidikan",
@@ -264,6 +303,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Jadwalnya fleksibel, cocok untuk yang sambil bekerja.",
         ],
         sections=_sections("Program kelas & jadwal"),
+        hero_style="split",
+        gallery_title="Suasana Belajar",
+        gallery_subtitle="Kegiatan dan ruang kelas kami.",
+        gallery_aspect="aspect-[4/3]",
     ),
     "umum": NicheTemplate(
         key="umum",
@@ -295,6 +338,10 @@ TEMPLATES: Dict[str, NicheTemplate] = {
             "Sudah beberapa kali pesan dan selalu konsisten. Recommended.",
         ],
         sections=_sections("Layanan unggulan"),
+        hero_style="split",
+        gallery_title="Galeri",
+        gallery_subtitle="Beberapa dokumentasi dari kami.",
+        gallery_aspect="aspect-[4/3]",
     ),
 }
 
