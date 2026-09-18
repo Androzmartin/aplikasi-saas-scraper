@@ -234,7 +234,7 @@ TEMPLATES: Dict[str, NicheTemplate] = {
         ],
         sections=_sections("Jenis pengerjaan & estimasi"),
         hero_style="overlay",
-        gallery_title="Hasil Pengerjaan",
+        gallery_title="Galeri Bengkel",
         gallery_subtitle="Beberapa pekerjaan yang sudah kami tangani.",
         gallery_aspect="aspect-[4/3]",
     ),

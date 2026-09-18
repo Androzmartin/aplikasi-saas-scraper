@@ -510,7 +510,7 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
     )
 
     gallery_nav = (
-        f'<a href="#galeri" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">{_esc(template.gallery_title)}</a>'
+        f'<a href="#galeri" class="whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900">{_esc(template.gallery_title)}</a>'
         if gallery_block
         else ""
     )
@@ -548,11 +548,11 @@ def render_index_html(lead: Dict[str, Any], concept: Dict[str, Any], audit: Opti
       <span class="text-[15px] font-bold tracking-tight">{_esc(business)}</span>
     </a>
     <nav class="hidden items-center gap-8 lg:flex">
-      <a href="#layanan" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Layanan</a>
+      <a href="#layanan" class="whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900">Layanan</a>
       {gallery_nav}
-      <a href="#unggulan" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">{_esc(template.highlight_title)}</a>
-      <a href="#testimoni" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Testimoni</a>
-      <a href="#kontak" class="text-sm font-medium text-slate-600 transition hover:text-slate-900">Kontak</a>
+      <a href="#unggulan" class="whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900">{_esc(template.highlight_title)}</a>
+      <a href="#testimoni" class="whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900">Testimoni</a>
+      <a href="#kontak" class="whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900">Kontak</a>
     </nav>
     <div class="shrink-0">{cta()}</div>
   </div>
