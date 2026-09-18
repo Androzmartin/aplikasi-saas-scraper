@@ -116,16 +116,21 @@ export default function Discovery() {
                 ))}
               </select>
             </Field>
-            {/* Only rendered when the server has more than one source. */}
-            {(options?.providers.length ?? 0) > 1 && (
-              <Field label="Sumber data">
-                <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
-                  {options?.providers.map((p) => (
-                    <option key={p.key} value={p.key}>{p.label}</option>
-                  ))}
-                </select>
-              </Field>
-            )}
+            {/* Google is listed even without a key, greyed out. Hiding it made
+                keyword search and rating filters undiscoverable. */}
+            <Field label="Sumber data">
+              <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
+                {options?.providers.map((p) => (
+                  <option
+                    key={p.key}
+                    value={p.key}
+                    disabled={p.key === 'google' && !options?.google_configured}
+                  >
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Masukkan ke project">
               <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                 {projects.length === 0 && <option value="">(belum ada project)</option>}
@@ -167,6 +172,19 @@ export default function Discovery() {
                   <option value="4">≤ 4,0 — masih bisa ditingkatkan</option>
                 </select>
               </Field>
+            </div>
+          )}
+
+          {options && !options.google_configured && (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+              <p className="font-semibold">Kolom RATING kosong karena Google Places belum aktif.</p>
+              <p className="mt-1">
+                OpenStreetMap tidak menyimpan rating sama sekali. Untuk mencari bisnis
+                ber-rating jelek (calon klien redesign terbaik) dan mencari dengan kata
+                kunci bebas, isi <code className="font-mono">GOOGLE_PLACES_API_KEY</code> di
+                berkas <code className="font-mono">backend/.env</code>, lalu nyalakan ulang
+                backend.
+              </p>
             </div>
           )}
 

@@ -210,6 +210,7 @@ export interface DiscoveryOptions {
   regions: DiscoveryOption[]
   categories: DiscoveryOption[]
   providers: DiscoveryOption[]
+  google_configured: boolean
   attribution: string
 }
 

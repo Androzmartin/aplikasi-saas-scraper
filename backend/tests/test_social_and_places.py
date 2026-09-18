@@ -224,15 +224,26 @@ class TestGooglePlaces:
 
 
 class TestProviderSelection:
-    async def test_google_hidden_when_not_configured(self, auth_client, monkeypatch):
+    async def test_google_listed_but_flagged_when_not_configured(self, auth_client, monkeypatch):
+        """Google stays in the list so the user can see the feature exists.
+
+        Hiding it entirely left no hint that keyword search and rating filters
+        were even possible, so an empty RATING column looked like a bug.
+        """
         monkeypatch.setattr(settings, "google_places_api_key", "")
         body = (await auth_client.get("/api/discovery/options")).json()
-        assert [p["key"] for p in body["providers"]] == ["osm"]
+        assert [p["key"] for p in body["providers"]] == ["osm", "google"]
+        assert body["google_configured"] is False
+        google = next(p for p in body["providers"] if p["key"] == "google")
+        assert "API key" in google["label"], "label harus menjelaskan kenapa belum bisa dipakai"
 
     async def test_google_offered_when_configured(self, auth_client, monkeypatch):
         monkeypatch.setattr(settings, "google_places_api_key", "kunci-uji")
         body = (await auth_client.get("/api/discovery/options")).json()
         assert {p["key"] for p in body["providers"]} == {"osm", "google"}
+        assert body["google_configured"] is True
+        google = next(p for p in body["providers"] if p["key"] == "google")
+        assert "API key" not in google["label"]
 
     async def test_search_uses_google_when_asked(self, auth_client, monkeypatch):
         monkeypatch.setattr(settings, "google_places_api_key", "kunci-uji")

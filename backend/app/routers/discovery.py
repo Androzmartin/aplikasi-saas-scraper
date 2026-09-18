@@ -25,16 +25,23 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 @router.get("/options", response_model=DiscoveryOptions)
 async def get_options(_: Dict[str, Any] = Depends(get_current_user)) -> Any:
     """Areas, categories and the data sources available on this server."""
+    # Google is always listed, even without a key: hiding it entirely left the
+    # user unable to discover that keyword search and ratings exist at all.
+    google_ready = places.is_configured()
     providers = [
-        {"key": "osm", "label": "OpenStreetMap (gratis)"},
+        {"key": "osm", "label": "OpenStreetMap (gratis, tanpa rating)"},
+        {
+            "key": "google",
+            "label": "Google Places (rating + kata kunci)"
+            + ("" if google_ready else " - perlu API key"),
+        },
     ]
-    if places.is_configured():
-        providers.append({"key": "google", "label": "Google Places (berbayar, cakupan lebih luas)"})
 
     return {
         "regions": discovery.list_regions(),
         "categories": discovery.list_categories(),
         "providers": providers,
+        "google_configured": google_ready,
         "attribution": discovery.ATTRIBUTION,
     }
 

@@ -251,6 +251,7 @@ class DiscoveryOptions(ApiModel):
     categories: List[DiscoveryOption] = Field(default_factory=list)
     # Google Places only appears when the server has an API key configured.
     providers: List[DiscoveryOption] = Field(default_factory=list)
+    google_configured: bool = False
     attribution: str = ""
 
 
